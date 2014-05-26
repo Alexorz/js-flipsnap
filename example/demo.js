@@ -98,10 +98,12 @@ if (!$('.demo').length) return;
 
 	var items = $(flipsnap.element).children();
 	var itemWidth = 230;
+	var offsetX = 20;
+	var translateZ = 100;
     var ratioCache = [];
     items.each(function( i ){
         flipsnap._setElementStyle( this.style, 'transform', flipsnap.use3d ?
-        	  'perspective(200px) translate3d('+ (i == 0 ? 0 : '-15px') +', 0, '+ (i == 0 ? 0 : '-100px') +')'
+        	  'perspective(200px) translate3d('+ (i == 0 ? 0 : '-'+ offsetX +'px') +', 0, '+ (i == 0 ? 0 : '-'+ translateZ +'px') +')'
         	: 'scale(0.5)' );
     });
 	flipsnap.element.addEventListener('fsmove', function(ev) {
@@ -118,7 +120,7 @@ if (!$('.demo').length) return;
             offsetRatio = ( offsetRatio > 1 ? 1 : offsetRatio );
             if ( offsetRatio != 0 || offsetRatio != 1 || offsetRatio != ratioCache[ i ] ) {
                 flipsnap._setElementStyle( items[i].style, 'transform', flipsnap.use3d ? 
-				  'perspective(200px) translate3d('+ offsetRatio * side * -15 +'px, 0, '+  offsetRatio * -100 +'px)'
+				  'perspective(200px) translate3d('+ offsetRatio * side * -1 * offsetX +'px, 0, '+  offsetRatio * -1 * translateZ +'px)'
             	: 'scale('+ (1 - offsetRatio * 0.5) +')' );
                 ratioCache[ i ] = offsetRatio;
             }
