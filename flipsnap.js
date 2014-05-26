@@ -351,7 +351,8 @@ Flipsnap.prototype._touchMove = function(event, type) {
     // if they prevent us then stop it
     var isPrevent = !self._triggerEvent('fstouchmove', true, true, {
       delta: distX,
-      direction: self.directionX
+      direction: self.directionX,
+      absoluteX: newX
     });
 
     if (isPrevent) {
