@@ -469,7 +469,7 @@ Flipsnap.prototype._animate = function(x, transitionDuration) {
       now = pos * (to - from) + from;
     }
     elem.style.left = now + "px";
-  }, 10);
+  }, 100 / 6 );
 };
 
 Flipsnap.prototype.destroy = function() {
