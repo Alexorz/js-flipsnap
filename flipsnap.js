@@ -263,16 +263,12 @@ Flipsnap.prototype.moveToPoint = function(point, transitionDuration, fromTouch) 
     self.currentPoint = parseInt(point, 10);
   }
 
+  var evData = {
+    moved: beforePoint !== self.currentPoint, // is point moved?
+    originalPoint: beforePoint,
+    newPoint: self.currentPoint
+  };
   var moveEndCallback = function(){
-    var evData = {
-      moved: beforePoint !== self.currentPoint,
-      originalPoint: beforePoint,
-      newPoint: self.currentPoint
-    };
-    if ( evData.moved ) { // is point moved?
-      // `fspointmove` is recommend.
-      self._triggerEvent('fspointmove', true, false, evData);
-    }
     self._triggerEvent('fsmoveend', true, false, evData);
   };
 
@@ -286,6 +282,10 @@ Flipsnap.prototype.moveToPoint = function(point, transitionDuration, fromTouch) 
   }
 
   self._setX(- self.currentPoint * self._distance, transitionDuration, fromTouch, moveEndCallback);
+  
+  if ( evData.moved ) {
+    self._triggerEvent('fspointmove', true, false, evData);
+  }
 };
 
 Flipsnap.prototype._setX = function(x, transitionDuration, fromTouch, moveEndCallback) {
