@@ -26,7 +26,7 @@ if (!$('.demo').length) return;
 (function transitionDuration() {
 	Flipsnap('#demo-transitionDuration .flipsnap', {
 		distance: 230,
-		transitionDuration: 150
+		transitionDuration: 1000
 	});
 })();
 
@@ -65,7 +65,9 @@ if (!$('.demo').length) return;
 	}, false);
 
 	flipsnap.element.addEventListener('fstouchmove', function(ev) {
-		$event.text('fstouchmove');
+		if ( $event.text() !== 'fstouchmove' ){
+			$event.text('fstouchmove');
+		}
 		$detail.text(JSON.stringify({
 			delta: ev.delta,
 			direction: ev.direction
@@ -79,6 +81,56 @@ if (!$('.demo').length) return;
 			originalPoint: ev.originalPoint,
 			newPoint: ev.newPoint,
 			cancelled: ev.cancelled
+		}, null, 2));
+	}, false);
+})();
+
+(function moveevents() {
+	var $demo = $('#demo-moveevents');
+	var $event = $demo.find('.event span');
+	var $detail = $demo.find('.detail');
+	var flipsnap = Flipsnap('#demo-moveevents .flipsnap', {
+		distance: 230
+	});
+	flipsnap.element.addEventListener('fsmovestart', function(ev) {
+		$event.text('fsmovestart');
+	}, false);
+
+	var items = $(flipsnap.element).children();
+	var itemWidth = 230;
+    var ratioCache = [];
+    items.each(function( i ){
+        flipsnap._setElementStyle( this.style, 'transform', flipsnap.use3d ?
+        	  'perspective(200px) translate3d('+ (i == 0 ? 0 : '-15px') +', 0, '+ (i == 0 ? 0 : '-100px') +')'
+        	: 'scale(0.5)' );
+    });
+	flipsnap.element.addEventListener('fsmove', function(ev) {
+		if ( $event.text() !== 'fsmove' ){
+			$event.text('fsmove');
+		}
+		$detail.text(JSON.stringify({
+			absoluteX: ev.absoluteX
+		}, null, 2));
+
+        for (var i = 0, l = items.length; i < l; i++) {
+        	var side = ev.absoluteX + itemWidth * i > 0 ? 1 : -1;
+            var offsetRatio = Math.abs(ev.absoluteX + itemWidth * i) / itemWidth;
+            offsetRatio = ( offsetRatio > 1 ? 1 : offsetRatio );
+            if ( offsetRatio != 0 || offsetRatio != 1 || offsetRatio != ratioCache[ i ] ) {
+                flipsnap._setElementStyle( items[i].style, 'transform', flipsnap.use3d ? 
+				  'perspective(200px) translate3d('+ offsetRatio * side * -15 +'px, 0, '+  offsetRatio * -100 +'px)'
+            	: 'scale('+ (1 - offsetRatio * 0.5) +')' );
+                ratioCache[ i ] = offsetRatio;
+            }
+        }
+	}, false);
+
+	flipsnap.element.addEventListener('fsmoveend', function(ev) {
+		$event.text('fsmoveend');
+		$detail.text(JSON.stringify({
+			moved: ev.moved,
+			originalPoint: ev.originalPoint,
+			newPoint: ev.newPoint
 		}, null, 2));
 	}, false);
 })();
@@ -207,7 +259,7 @@ $('.sample a').click(function(e) {
   var $a = $(this);
   var $code = $a.parents('.sample').find('pre');
   $code.slideToggle('fast', function() {
-    $a.text($code.is(':visible') ? 'hide code' : 'show code');
+    $a.text($code.is(':visible') ? $a.text().replace('show', 'hide') : $a.text().replace('hide', 'show'));
   });
 });
 

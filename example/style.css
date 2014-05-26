@@ -99,6 +99,19 @@ h1, h2, h3 {
   font-size: 12px;
 }
 
+#demo-moveevents .log {
+  width: 280px;
+  margin: 0 auto;
+}
+
+#demo-moveevents pre.detail {
+  background: #EFEFEF;
+  padding: 5px;
+  border: 1px solid #CCC;
+  height: 80px;
+  font-size: 12px;
+}
+
 #demo-refresh .flipsnap {
   width: 270px; }
 
