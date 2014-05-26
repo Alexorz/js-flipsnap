@@ -261,7 +261,7 @@ describe('Flipsnap', function() {
         it('transitionDuration should pass `_animate`', function() {
           f.moveToPoint(1, 100);
           expect(this.spy.args[0][1])
-            .to.be('100ms');
+            .to.be(100);
         });
       });
     });
