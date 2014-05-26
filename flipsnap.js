@@ -472,6 +472,8 @@ Flipsnap.prototype._setStyle = function(styles) {
   }
 };
 
+Flipsnap.prototype._setElementStyle = setStyle;
+
 Flipsnap.prototype._animate = function(x, transitionDuration, callback) {
   var self = this;
   var elem = self.element;
