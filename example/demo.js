@@ -16,6 +16,12 @@ if (!$('.demo').length) return;
 	});
 })();
 
+(function autoplay() {
+	Flipsnap('#demo-autoplay .flipsnap', {
+		transitionDuration: 700
+	}).autoPlay( 3000 );
+})();
+
 (function maxPoint() {
 	Flipsnap('#demo-maxPoint .flipsnap', {
 		distance: 160, // 80px * 2

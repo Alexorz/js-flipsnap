@@ -66,6 +66,15 @@ var events = {
   }
 };
 
+var requestAnimationFrame = window.requestAnimationFrame;
+for(var x = 0; x < prefix.length && !requestAnimationFrame; ++x) {
+  requestAnimationFrame = window[prefix[x]+'RequestAnimationFrame'];
+}
+if ( !requestAnimationFrame ) {
+  requestAnimationFrame = function( func ){ func(); };
+}
+
+
 if (support.addEventListener) {
   document.addEventListener('gesturestart', function() {
     gestureStart = true;
@@ -239,7 +248,8 @@ Flipsnap.prototype.moveToPoint = function(point, transitionDuration, fromTouch) 
 
   // When not manually touch.
   if ( !fromTouch ) {
-    clearTimeout(self.moveendTimeout);
+    clearTimeout(self._moveendTimeout);
+    clearTimeout(self._autoPlayTimeout);
     self._triggerEvent('fsmovestart', true, false);
   }
 
@@ -270,12 +280,13 @@ Flipsnap.prototype.moveToPoint = function(point, transitionDuration, fromTouch) 
   };
   var moveEndCallback = function(){
     self._triggerEvent('fsmoveend', true, false, evData);
+    self._autoPlay();
   };
 
   // Use js animation when manually touch.
   if ( support.cssAnimation && !fromTouch ) {
     self._setStyle({ transitionDuration: transitionDuration + 'ms' });
-    self.moveendTimeout = setTimeout( moveEndCallback , transitionDuration );
+    self._moveendTimeout = setTimeout( moveEndCallback , transitionDuration );
   }
   else {
     self.animation = true;
@@ -311,12 +322,13 @@ Flipsnap.prototype._setX = function(x, transitionDuration, fromTouch, moveEndCal
 Flipsnap.prototype._touchStart = function(event, type) {
   var self = this;
 
-  clearInterval(self.timer);
-  clearTimeout(self.moveendTimeout);
-
   if (self.disableTouch || self.scrolling || gestureStart) {
     return;
   }
+
+  clearInterval(self._animateTimer);
+  clearTimeout(self._moveendTimeout);
+  clearTimeout(self._autoPlayTimeout);
 
   self.element.addEventListener(events.move[type], self, false);
   document.addEventListener(events.end[type], self, false);
@@ -403,6 +415,10 @@ Flipsnap.prototype._touchMove = function(event, type) {
       }
       else {
         self.scrolling = false;
+        if ( -1 * self.currentPoint * self._distance != self.currentX ) {
+          self.moveToPoint( self.currentPoint ); 
+        }
+        self._autoPlay();
       }
     }
   }
@@ -463,6 +479,40 @@ Flipsnap.prototype._touchAfter = function(params) {
   self._triggerEvent('fstouchend', true, false, params);
 };
 
+Flipsnap.prototype.autoPlay = function( autoPlayDuration ){
+  this.enableAutoPlay = true;
+  this.autoPlayDuration = autoPlayDuration || this.autoPlayDuration || 4000;
+  this._autoPlay();
+  return this;
+};
+
+Flipsnap.prototype.stopAutoPlay = function(){
+  this.enableAutoPlay = false;
+  clearTimeout( this._autoPlayTimeout );
+  return this;
+};
+
+Flipsnap.prototype._autoPlay = function(){
+  var self = this;
+
+  if ( !self.enableAutoPlay ) {
+    return;
+  }
+
+  clearTimeout( self._autoPlayTimeout );
+  self._autoPlayTimeout = setTimeout(function(){
+    requestAnimationFrame(function(){
+      if ( self.hasNext() ) {
+        self.toNext();
+      }
+      else {
+        self.moveToPoint(0);
+      }
+      self._autoPlay();
+    });
+  }, self.autoPlayDuration );
+};
+
 Flipsnap.prototype._setStyle = function(styles) {
   var self = this;
   var style = self.element.style;
@@ -484,11 +534,11 @@ Flipsnap.prototype._animate = function(x, transitionDuration, callback) {
   var easing = function(time, duration) {
     return -(time /= duration) * (time - 2);
   }; 
-  self.timer = setInterval(function() {
+  self._animateTimer = setInterval(function() {
     var time = new Date() - begin;
     var pos, now;
     if (time > duration) {
-      clearInterval(self.timer);
+      clearInterval(self._animateTimer);
       now = to;
       setTimeout(function(){
         if ( typeof callback == 'function' ) {

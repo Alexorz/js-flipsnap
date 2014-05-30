@@ -77,6 +77,13 @@ h1, h2, h3 {
   width: auto;
   height: auto; }
 
+#demo-autoplay .flipsnap {
+  width: 960px;
+  padding: 0; }
+#demo-autoplay .item {
+  width: 310px;
+  margin: 0; }
+
 #demo-maxPoint .flipsnap {
   width: 800px;
   /* 80px(item) * 10 */
