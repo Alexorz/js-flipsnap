@@ -7,7 +7,7 @@ end
 desc 'watch file and start server'
 task 'watch' do
   fork { sh 'sass --watch _scss:css' }
-  fork { sh 'jekyll --auto --server' }
+  fork { sh 'jekyll serve --watch' }
 
   Process.waitall
 end
