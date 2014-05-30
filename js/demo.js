@@ -96,7 +96,8 @@ if (!$('.demo').length) return;
 	var $event = $demo.find('.event span');
 	var $detail = $demo.find('.detail');
 	var flipsnap = Flipsnap('#demo-moveevents .flipsnap', {
-		distance: 230
+		distance: 230,
+		disableCssTransition: true
 	});
 	flipsnap.element.addEventListener('fsmovestart', function(ev) {
 		$event.text('fsmovestart');
