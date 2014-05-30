@@ -303,14 +303,17 @@ Flipsnap.prototype.moveToPoint = function(point, transitionDuration, fromTouch) 
 Flipsnap.prototype._setX = function(x, transitionDuration, fromTouch, moveEndCallback) {
   var self = this;
 
+  // Animation
   if ( self.animation ) {
     if (support.cssAnimation && !self.disableCssTransition && !fromTouch ) {
-      self.element.style[ saveProp.transform ] = self._getTranslate(x);  
+      self.element.style[ saveProp.transform ] = self._getTranslate(x);
+      self.currentX = x;
     }
     else {
       self._animate(x, transitionDuration || self.transitionDuration, moveEndCallback);
     }
   }
+  // Single frame
   else {
     if ( support.cssAnimation ) {
       self.element.style[ saveProp.transform ] = self._getTranslate(x);  
