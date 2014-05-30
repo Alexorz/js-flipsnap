@@ -5,4 +5,4 @@
 
 flipsnap.js is snap scroll for touch device.
 
-http://pxgrid.github.com/js-flipsnap/
+http://alexorz.github.com/js-flipsnap/
