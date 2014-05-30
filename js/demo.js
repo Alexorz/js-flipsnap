@@ -16,6 +16,12 @@ if (!$('.demo').length) return;
 	});
 })();
 
+(function autoplay() {
+	Flipsnap('#demo-autoplay .flipsnap', {
+		transitionDuration: 700
+	}).autoPlay( 3000 );
+})();
+
 (function maxPoint() {
 	Flipsnap('#demo-maxPoint .flipsnap', {
 		distance: 160, // 80px * 2
@@ -39,6 +45,113 @@ if (!$('.demo').length) return;
 	flipsnap.element.addEventListener('fspointmove', function() {
 		$pointer.filter('.current').removeClass('current');
 		$pointer.eq(flipsnap.currentPoint).addClass('current');
+	}, false);
+
+	var $next = $demo.find(".next").click(function() {
+		flipsnap.toNext();
+	});
+	var $prev = $demo.find(".prev").click(function() {
+		flipsnap.toPrev();
+	});
+	flipsnap.element.addEventListener('fspointmove', function() {
+		$next.attr("disabled", !flipsnap.hasNext());
+		$prev.attr("disabled", !flipsnap.hasPrev());
+	}, false);
+})();
+
+(function touchevents() {
+	var $demo = $('#demo-touchevents');
+	var $event = $demo.find('.event span');
+	var $detail = $demo.find('.detail');
+	var flipsnap = Flipsnap('#demo-touchevents .flipsnap', {
+		distance: 230
+	});
+	flipsnap.element.addEventListener('fstouchstart', function(ev) {
+		$event.text('fstouchstart');
+	}, false);
+
+	flipsnap.element.addEventListener('fstouchmove', function(ev) {
+		if ( $event.text() !== 'fstouchmove' ){
+			$event.text('fstouchmove');
+		}
+		$detail.text(JSON.stringify({
+			delta: ev.delta,
+			direction: ev.direction
+		}, null, 2));
+	}, false);
+
+	flipsnap.element.addEventListener('fstouchend', function(ev) {
+		$event.text('fstouchend');
+		$detail.text(JSON.stringify({
+			moved: ev.moved,
+			originalPoint: ev.originalPoint,
+			newPoint: ev.newPoint,
+			cancelled: ev.cancelled
+		}, null, 2));
+	}, false);
+})();
+
+(function moveevents() {
+	var $demo = $('#demo-moveevents');
+	var $event = $demo.find('.event span');
+	var $detail = $demo.find('.detail');
+	var flipsnap = Flipsnap('#demo-moveevents .flipsnap', {
+		distance: 230
+	});
+	flipsnap.element.addEventListener('fsmovestart', function(ev) {
+		$event.text('fsmovestart');
+	}, false);
+
+	var items = $(flipsnap.element).children();
+	var itemWidth = 230;
+	var offsetX = 20;
+	var translateZ = 100;
+    var ratioCache = [];
+    items.each(function( i ){
+        flipsnap._setElementStyle( this.style, 'transform', flipsnap.use3d ?
+        	  'perspective(200px) translate3d('+ (i == 0 ? 0 : '-'+ offsetX +'px') +', 0, '+ (i == 0 ? 0 : '-'+ translateZ +'px') +')'
+        	: 'scale(0.5)' );
+    });
+	flipsnap.element.addEventListener('fsmove', function(ev) {
+		if ( $event.text() !== 'fsmove' ){
+			$event.text('fsmove');
+		}
+		$detail.text(JSON.stringify({
+			absoluteX: ev.absoluteX
+		}, null, 2));
+
+        for (var i = 0, l = items.length; i < l; i++) {
+        	var side = ev.absoluteX + itemWidth * i > 0 ? 1 : -1;
+            var offsetRatio = Math.abs(ev.absoluteX + itemWidth * i) / itemWidth;
+            offsetRatio = ( offsetRatio > 1 ? 1 : offsetRatio );
+            if ( offsetRatio != 0 || offsetRatio != 1 || offsetRatio != ratioCache[ i ] ) {
+                flipsnap._setElementStyle( items[i].style, 'transform', flipsnap.use3d ? 
+				  'perspective(200px) translate3d('+ offsetRatio * side * -1 * offsetX +'px, 0, '+  offsetRatio * -1 * translateZ +'px)'
+            	: 'scale('+ (1 - offsetRatio * 0.5) +')' );
+                ratioCache[ i ] = offsetRatio;
+            }
+        }
+	}, false);
+
+	flipsnap.element.addEventListener('fsmoveend', function(ev) {
+		$event.text('fsmoveend');
+		$detail.text(JSON.stringify({
+			moved: ev.moved,
+			originalPoint: ev.originalPoint,
+			newPoint: ev.newPoint
+		}, null, 2));
+	}, false);
+})();
+
+(function cancelmove() {
+	var $demo = $('#demo-cancelmove');
+	var flipsnap = Flipsnap('#demo-cancelmove .flipsnap', {
+		distance: 230
+	});
+	flipsnap.element.addEventListener('fstouchmove', function(ev) {
+		if (ev.direction === -1) {
+			ev.preventDefault();
+		}
 	}, false);
 })();
 
@@ -64,7 +177,7 @@ if (!$('.demo').length) return;
 	// remove last item
 	$(".remove").click(function() {
 		var $items = $flipsnap.find(".item");
-		if ($items.size() <= 1) return;
+		if ($items.size() <= 0) return;
 		width -= distance;
 		$items.last().remove().width(width);
 		flipsnap.refresh();
@@ -149,77 +262,12 @@ if (!$('.demo').length) return;
 	}, false);
 })();
 
-(function touchevents() {
-	var $demo = $('#demo-touchevents');
-	var $event = $demo.find('.event span');
-	var $detail = $demo.find('.detail');
-	var flipsnap = Flipsnap('#demo-touchevents .flipsnap', {
-		distance: 230
-	});
-	flipsnap.element.addEventListener('fstouchstart', function(ev) {
-		$event.text('fstouchstart');
-	}, false);
-
-	flipsnap.element.addEventListener('fstouchmove', function(ev) {
-		$event.text('fstouchmove');
-		$detail.text(JSON.stringify({
-			delta: ev.delta,
-			direction: ev.direction
-		}, null, 2));
-	}, false);
-
-	flipsnap.element.addEventListener('fstouchend', function(ev) {
-		$event.text('fstouchend');
-		$detail.text(JSON.stringify({
-			moved: ev.moved,
-			originalPoint: ev.originalPoint,
-			newPoint: ev.newPoint,
-			cancelled: ev.cancelled
-		}, null, 2));
-	}, false);
-})();
-
-(function cancelmove() {
-	var $demo = $('#demo-cancelmove');
-	var $event = $demo.find('.event span');
-	var $detail = $demo.find('.detail');
-	var flipsnap = Flipsnap('#demo-cancelmove .flipsnap', {
-		distance: 230
-	});
-	flipsnap.element.addEventListener('fstouchstart', function(ev) {
-		$event.text('fstouchstart');
-	}, false);
-
-	flipsnap.element.addEventListener('fstouchmove', function(ev) {
-		// if touchmove to prev, when touchmove event cancel
-		if (ev.direction === -1) {
-			ev.preventDefault();
-			flipsnap.moveToPoint(ev.newPoint);
-		}
-		$event.text('fstouchmove');
-		$detail.text(JSON.stringify({
-			delta: ev.delta,
-			direction: ev.direction
-		}, null, 2));
-	}, false);
-
-	flipsnap.element.addEventListener('fstouchend', function(ev) {
-		$event.text('fstouchend');
-		$detail.text(JSON.stringify({
-			moved: ev.moved,
-			originalPoint: ev.originalPoint,
-			newPoint: ev.newPoint,
-			cancelled: ev.cancelled
-		}, null, 2));
-	}, false);
-})();
-
 $('.sample a').click(function(e) {
   e.preventDefault();
   var $a = $(this);
   var $code = $a.parents('.sample').find('pre');
   $code.slideToggle('fast', function() {
-    $a.text($code.is(':visible') ? 'hide code' : 'show code');
+    $a.text($code.is(':visible') ? $a.text().replace('show', 'hide') : $a.text().replace('hide', 'show'));
   });
 });
 

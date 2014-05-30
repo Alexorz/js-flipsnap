@@ -343,6 +343,13 @@ button[disabled] {
   width: auto;
   height: auto; }
 
+#demo-autoplay .flipsnap {
+  width: 960px;
+  padding: 0; }
+#demo-autoplay .item {
+  width: 310px;
+  margin: 0; }
+
 #demo-maxPoint .flipsnap {
   width: 800px;
   /* 80px(item) * 10 */
@@ -379,6 +386,18 @@ button[disabled] {
   height: 105px;
   font-size: 12px; }
 
+#demo-moveevents .log {
+  width: 280px;
+  margin: 0 auto; }
+
+#demo-moveevents pre.detail {
+  background: #EFEFEF;
+  padding: 5px;
+  border: 1px solid #CCC;
+  height: 80px;
+  font-size: 12px; }
+
+.sample .event,
 .sample p {
   text-align: center; }
 
