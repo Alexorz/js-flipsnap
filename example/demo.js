@@ -98,7 +98,7 @@ if (!$('.demo').length) return;
 	var flipsnap = Flipsnap('#demo-moveevents .flipsnap', {
 		distance: 230,
 		disableCssTransition: true
-	}).autoPlay();
+	});
 	flipsnap.element.addEventListener('fsmovestart', function(ev) {
 		$event.text('fsmovestart');
 	}, false);
