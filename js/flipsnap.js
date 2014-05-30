@@ -526,8 +526,6 @@ Flipsnap.prototype._setStyle = function(styles) {
   }
 };
 
-Flipsnap.prototype._setElementStyle = setStyle;
-
 Flipsnap.prototype._animate = function(x, transitionDuration, callback) {
   var self = this;
   var elem = self.element;
@@ -631,6 +629,9 @@ function setStyle(style, prop, val) {
     });
   }
 }
+
+// Export as a util function.
+Flipsnap.prototype.setStyle = setStyle;
 
 function getCSSVal(prop) {
   if (div.style[ prop ] !== undefined) {

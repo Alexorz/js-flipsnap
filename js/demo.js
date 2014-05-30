@@ -109,7 +109,7 @@ if (!$('.demo').length) return;
 	var translateZ = 100;
     var ratioCache = [];
     items.each(function( i ){
-        flipsnap._setElementStyle( this.style, 'transform', flipsnap.use3d ?
+        flipsnap.setStyle( this.style, 'transform', flipsnap.use3d ?
         	  'perspective(200px) translate3d('+ (i == 0 ? 0 : '-'+ offsetX +'px') +', 0, '+ (i == 0 ? 0 : '-'+ translateZ +'px') +')'
         	: 'scale(0.5)' );
     });
@@ -126,7 +126,7 @@ if (!$('.demo').length) return;
             var offsetRatio = Math.abs(ev.absoluteX + itemWidth * i) / itemWidth;
             offsetRatio = ( offsetRatio > 1 ? 1 : offsetRatio );
             if ( offsetRatio != 0 || offsetRatio != 1 || offsetRatio != ratioCache[ i ] ) {
-                flipsnap._setElementStyle( items[i].style, 'transform', flipsnap.use3d ? 
+                flipsnap.setStyle( items[i].style, 'transform', flipsnap.use3d ? 
 				  'perspective(200px) translate3d('+ offsetRatio * side * -1 * offsetX +'px, 0, '+  offsetRatio * -1 * translateZ +'px)'
             	: 'scale('+ (1 - offsetRatio * 0.5) +')' );
                 ratioCache[ i ] = offsetRatio;
