@@ -352,7 +352,6 @@ Flipsnap.prototype._touchStart = function(event, type) {
   self.directionX = 0;
   self.startTime = event.timeStamp;
   self._triggerEvent('fstouchstart', true, false);
-  self._triggerEvent('fsmovestart', true, false);
 };
 
 Flipsnap.prototype._touchMove = function(event, type) {
@@ -412,6 +411,7 @@ Flipsnap.prototype._touchMove = function(event, type) {
         event.preventDefault();
         self.moveReady = true;
         self.element.addEventListener('click', self, true);
+        self._triggerEvent('fsmovestart', true, false);
       }
       else {
         self.scrolling = false;
