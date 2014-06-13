@@ -249,10 +249,11 @@ Flipsnap.prototype.moveToPoint = function(point, transitionDuration, fromTouch) 
 
   // When not manually touch.
   if ( !fromTouch ) {
-    clearTimeout(self._moveendTimeout);
     clearTimeout(self._autoPlayTimeout);
     self._triggerEvent('fsmovestart', true, false);
   }
+
+  clearTimeout(self._moveendTimeout);
 
   transitionDuration = transitionDuration === undefined
     ? self.transitionDuration : transitionDuration;
@@ -284,8 +285,8 @@ Flipsnap.prototype.moveToPoint = function(point, transitionDuration, fromTouch) 
     self._autoPlay();
   };
 
-  // Use js animation when manually touch.
-  if ( support.cssAnimation && !self.disableCssTransition && !fromTouch ) {
+  // Use js animation when disable css transition.
+  if ( support.cssAnimation && !self.disableCssTransition ) {
     self._setStyle({ transitionDuration: transitionDuration + 'ms' });
     self._moveendTimeout = setTimeout( moveEndCallback , transitionDuration );
   }
@@ -293,19 +294,19 @@ Flipsnap.prototype.moveToPoint = function(point, transitionDuration, fromTouch) 
     self.animation = true;
   }
 
-  self._setX(- self.currentPoint * self._distance, transitionDuration, fromTouch, moveEndCallback);
-  
+  self._setX(- self.currentPoint * self._distance, transitionDuration, moveEndCallback);
+
   if ( evData.moved ) {
     self._triggerEvent('fspointmove', true, false, evData);
   }
 };
 
-Flipsnap.prototype._setX = function(x, transitionDuration, fromTouch, moveEndCallback) {
+Flipsnap.prototype._setX = function(x, transitionDuration, moveEndCallback) {
   var self = this;
 
   // Animation
   if ( self.animation ) {
-    if (support.cssAnimation && !self.disableCssTransition && !fromTouch ) {
+    if (support.cssAnimation && !self.disableCssTransition ) {
       self.element.style[ saveProp.transform ] = self._getTranslate(x);
       self.currentX = x;
     }
@@ -316,7 +317,7 @@ Flipsnap.prototype._setX = function(x, transitionDuration, fromTouch, moveEndCal
   // Single frame
   else {
     if ( support.cssAnimation ) {
-      self.element.style[ saveProp.transform ] = self._getTranslate(x);  
+      self.element.style[ saveProp.transform ] = self._getTranslate(x);
     }
     else {
       self.element.style.left = x + 'px';
@@ -381,7 +382,7 @@ Flipsnap.prototype._touchMove = function(event, type) {
 
     // When distX is 0, use one previous value.
     // For android firefox. When touchend fired, touchmove also
-    // fired and distX is certainly set to 0. 
+    // fired and distX is certainly set to 0.
     self.directionX =
       distX === 0 ? self.directionX :
       distX > 0 ? -1 : 1;
@@ -420,7 +421,7 @@ Flipsnap.prototype._touchMove = function(event, type) {
       else {
         self.scrolling = false;
         if ( -1 * self.currentPoint * self._distance != self.currentX ) {
-          self.moveToPoint( undefined, undefined, true ); 
+          self.moveToPoint( undefined, undefined, true );
         }
         self._autoPlay();
       }
@@ -535,7 +536,7 @@ Flipsnap.prototype._animate = function(x, transitionDuration, callback) {
   var duration = transitionDuration;
   var easing = function(time, duration) {
     return -(time /= duration) * (time - 2);
-  }; 
+  };
   self._animateTimer = setInterval(function() {
     var time = new Date() - begin;
     var pos, now;
