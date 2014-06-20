@@ -50,6 +50,14 @@ support.mspointer = window.navigator.msPointerEnabled;
 
 support.cssAnimation = (support.transform3d || support.transform) && support.transition;
 
+var doWhenActive = window.requestAnimationFrame;
+for(var x = 0; x < prefix.length && !requestAnimationFrame; ++x) {
+  doWhenActive = window[prefix[x]+'RequestAnimationFrame'];
+}
+if ( !doWhenActive ) {
+  requestAnimationFrame = function( func ){ func(); };
+}
+
 var eventTypes = ['touch', 'mouse'];
 var events = {
   start: {
@@ -65,15 +73,6 @@ var events = {
     mouse: 'mouseup'
   }
 };
-
-var requestAnimationFrame = window.requestAnimationFrame;
-for(var x = 0; x < prefix.length && !requestAnimationFrame; ++x) {
-  requestAnimationFrame = window[prefix[x]+'RequestAnimationFrame'];
-}
-if ( !requestAnimationFrame ) {
-  requestAnimationFrame = function( func ){ func(); };
-}
-
 
 if (support.addEventListener) {
   document.addEventListener('gesturestart', function() {
@@ -109,36 +108,40 @@ Flipsnap.prototype.init = function(element, opts) {
   }
 
   // set opts
-  opts = opts || {};
-  self.distance = opts.distance;
-  self.maxPoint = opts.maxPoint;
+  opts = self.opts = opts || {};
+
+  self.distance = undefined;
   self.disableTouch = (opts.disableTouch === undefined) ? false : opts.disableTouch;
   self.disableCssTransition = (opts.disableCssTransition === undefined) ? false : opts.disableCssTransition;
   self.disable3d = (opts.disable3d === undefined) ? false : opts.disable3d;
   self.transitionDuration = (opts.transitionDuration === undefined) ? 350 : opts.transitionDuration;
+  self.loop = (opts.loop === undefined) ? false : {type:opts.loop};
 
   // set property
   self.currentPoint = 0;
+  self._currentPoint = 0; // _currentPoint & currentPoint will be diffrent in loop mode, currentPoint is for user.
+  self.maxPoint = undefined;
+  self._maxPoint = undefined; // _maxPoint & maxPoint will be diffrent in loop mode, maxPoint is for user.
   self.currentX = 0;
   self.animation = false;
   self.use3d = support.transform3d;
   if (self.disable3d === true) {
-    self.use3d = false;
+      self.use3d = false;
   }
 
   // set default style
   if (support.cssAnimation) {
     self._setStyle({
-      transitionProperty: getCSSVal('transform'),
-      transitionTimingFunction: 'cubic-bezier(0,0,0.25,1)',
-      transitionDuration: '0ms',
-      transform: self._getTranslate(0)
+        transitionProperty: getCSSVal('transform'),
+        transitionTimingFunction: 'cubic-bezier(0,0,0.25,1)',
+        transitionDuration: '0ms',
+        transform: self._getTranslate(0)
     });
   }
   else {
     self._setStyle({
-      position: 'relative',
-      left: '0px'
+        position: 'relative',
+        left: '0px'
     });
   }
 
@@ -176,10 +179,18 @@ Flipsnap.prototype.handleEvent = function(event) {
 Flipsnap.prototype.refresh = function() {
   var self = this;
 
-  // setting max point
-  self._maxPoint = (self.maxPoint === undefined) ? (function() {
+  // Remove loop fakers
+  if ( self.loop ) {
+    if ( self.firstLoopFaker ) {
+        self.element.removeChild( self.firstLoopFaker );
+        self.element.removeChild( self.lastLoopFaker );
+    }
+  }
+
+  // Cache item count
+  self._itemLength = (function() {
     var childNodes = self.element.childNodes,
-      itemLength = -1,
+      itemLength = 0,
       i = 0,
       len = childNodes.length,
       node;
@@ -191,10 +202,38 @@ Flipsnap.prototype.refresh = function() {
     }
 
     return itemLength;
-  })() : self.maxPoint;
+  })();
+
+  // setting max point
+  self.maxPoint = self._maxPoint = (self.opts.maxPoint === undefined) ? self._itemLength - 1 : self.opts.maxPoint;
+
 
   // setting distance
-  if (self.distance === undefined) {
+  self.updateDistance();
+
+  // set loop changes
+  if(self.loop){
+    var first = self.element.firstElementChild;
+    var last = self.element.lastElementChild;
+    self.firstLoopFaker = first.cloneNode(true);
+    self.lastLoopFaker = last.cloneNode(true);
+    self.element.style.width = (self.element.scrollWidth + self.element.scrollWidth * 2 / self._itemLength ) + 'px';
+    self.element.appendChild(self.firstLoopFaker);
+    self.element.insertBefore(self.lastLoopFaker, self.element.firstElementChild);
+    self._itemLength = self._itemLength === 0 ? 0 : ( self._itemLength + 2 );
+    self._maxPoint = self._maxPoint === 0 ? 0 : ( self._maxPoint + 2 );
+  }
+
+  // setting maxX
+  self._maxX = -self._distance * self._maxPoint;
+
+  self.moveToPoint(0,0);
+};
+
+Flipsnap.prototype.updateDistance = function() {
+  var self = this;
+
+  if (self.opts.distance === undefined) {
     if (self._maxPoint < 0) {
       self._distance = 0;
     }
@@ -203,25 +242,20 @@ Flipsnap.prototype.refresh = function() {
     }
   }
   else {
-    self._distance = self.distance;
+    self._distance = self.opts.distance;
   }
-
-  // setting maxX
-  self._maxX = -self._distance * self._maxPoint;
-
-  self.moveToPoint();
 };
 
 Flipsnap.prototype.hasNext = function() {
   var self = this;
 
-  return self.currentPoint < self._maxPoint;
+  return self.loop ? true : self.currentPoint < self.maxPoint;
 };
 
 Flipsnap.prototype.hasPrev = function() {
   var self = this;
 
-  return self.currentPoint > 0;
+  return self.loop ? true : self.currentPoint > 0;
 };
 
 Flipsnap.prototype.toNext = function(transitionDuration) {
@@ -245,34 +279,49 @@ Flipsnap.prototype.toPrev = function(transitionDuration) {
 };
 
 Flipsnap.prototype.moveToPoint = function(point, transitionDuration, fromTouch) {
+    var self = this;
+    var _point;
+
+    if ( point === undefined ) {
+      point = self.currentPoint;
+    }
+    else {
+        if (point < 0 || isNaN( point ) ) {
+          point = 0;
+        }
+        else if (point > self.maxPoint) {
+          point = self.maxPoint;
+      }
+    }
+
+    self._moveToPoint( self.loop ? point + 1 : point, transitionDuration, fromTouch );
+};
+
+Flipsnap.prototype._realPointToUserPoint = function( _point ){
+  return self.loop ? 
+      ( _point < 1 ? self.maxPoint : (_point - 1) )
+    : _point;
+};
+
+Flipsnap.prototype._moveToPoint = function(_point, transitionDuration, fromTouch ) {
   var self = this;
 
+  clearTimeout(self._moveendTimeout);
   // When not manually touch.
   if ( !fromTouch ) {
-    clearTimeout(self._moveendTimeout);
     clearTimeout(self._autoPlayTimeout);
     self._triggerEvent('fsmovestart', true, false);
   }
 
   transitionDuration = transitionDuration === undefined
     ? self.transitionDuration : transitionDuration;
-
+  // point loop show for user.
+  var point = self._realPointToUserPoint( _point );
   var beforePoint = self.currentPoint;
+  var _beforePoint = self._currentPoint;
 
-  // not called from `refresh()`
-  if (point === undefined) {
-    point = self.currentPoint;
-  }
-
-  if (point < 0) {
-    self.currentPoint = 0;
-  }
-  else if (point > self._maxPoint) {
-    self.currentPoint = self._maxPoint;
-  }
-  else {
-    self.currentPoint = parseInt(point, 10);
-  }
+  self.currentPoint = point;
+  self._currentPoint = _point;
 
   var evData = {
     moved: beforePoint !== self.currentPoint, // is point moved?
@@ -284,28 +333,28 @@ Flipsnap.prototype.moveToPoint = function(point, transitionDuration, fromTouch) 
     self._autoPlay();
   };
 
-  // Use js animation when manually touch.
-  if ( support.cssAnimation && !self.disableCssTransition && !fromTouch ) {
+  // Use js animation when disable css transition.
+  if ( support.cssAnimation && !self.disableCssTransition ) {
     self._setStyle({ transitionDuration: transitionDuration + 'ms' });
     self._moveendTimeout = setTimeout( moveEndCallback , transitionDuration );
   }
-  else {
+  else if ( transitionDuration !== 0 ) {
     self.animation = true;
   }
 
-  self._setX(- self.currentPoint * self._distance, transitionDuration, fromTouch, moveEndCallback);
-  
+  self._setX(- self._currentPoint * self._distance, transitionDuration, moveEndCallback);
+
   if ( evData.moved ) {
     self._triggerEvent('fspointmove', true, false, evData);
   }
 };
 
-Flipsnap.prototype._setX = function(x, transitionDuration, fromTouch, moveEndCallback) {
+Flipsnap.prototype._setX = function(x, transitionDuration, moveEndCallback) {
   var self = this;
 
   // Animation
   if ( self.animation ) {
-    if (support.cssAnimation && !self.disableCssTransition && !fromTouch ) {
+    if (support.cssAnimation && !self.disableCssTransition ) {
       self.element.style[ saveProp.transform ] = self._getTranslate(x);
       self.currentX = x;
     }
@@ -316,7 +365,7 @@ Flipsnap.prototype._setX = function(x, transitionDuration, fromTouch, moveEndCal
   // Single frame
   else {
     if ( support.cssAnimation ) {
-      self.element.style[ saveProp.transform ] = self._getTranslate(x);  
+      self.element.style[ saveProp.transform ] = self._getTranslate(x);
     }
     else {
       self.element.style.left = x + 'px';
@@ -369,6 +418,7 @@ Flipsnap.prototype._touchMove = function(event, type) {
   var pageY = getPage(event, 'pageY');
   var distX;
   var newX;
+  var directionX;
 
   if (self.moveReady) {
     event.preventDefault();
@@ -378,13 +428,35 @@ Flipsnap.prototype._touchMove = function(event, type) {
     if (newX >= 0 || newX < self._maxX) {
       newX = Math.round(self.currentX + distX / 3);
     }
-
+ 
     // When distX is 0, use one previous value.
     // For android firefox. When touchend fired, touchmove also
-    // fired and distX is certainly set to 0. 
-    self.directionX =
+    // fired and distX is certainly set to 0.
+    directionX = self.directionX =
       distX === 0 ? self.directionX :
       distX > 0 ? -1 : 1;
+
+    // Loop newX
+    if ( self.loop ) {
+      var leftRealSide = -1 * self._distance;
+      var rightRealSide = -1 * self._distance * ( self._itemLength - 2 );
+      if ( directionX == -1 ) {
+        if ( self.currentX <= leftRealSide && newX > leftRealSide ) {
+          newX = self._maxX + newX - leftRealSide;
+        }
+        else if ( self.currentX > leftRealSide && newX >= 0 ) {
+          newX = rightRealSide + newX;
+        }
+      }
+      else if ( directionX == 1 ) {
+        if ( self.currentX >= rightRealSide  && newX < rightRealSide ) {
+          newX = 0 + newX - rightRealSide ;
+        }
+        else if ( self.currentX < rightRealSide && newX <= self._maxX ) {
+          newX = leftRealSide + newX - self._maxX; 
+        }
+      }
+    }
 
     // if they prevent us then stop it
     var isPrevent = !self._triggerEvent('fstouchmove', true, true, {
@@ -420,7 +492,7 @@ Flipsnap.prototype._touchMove = function(event, type) {
       else {
         self.scrolling = false;
         if ( -1 * self.currentPoint * self._distance != self.currentX ) {
-          self.moveToPoint( undefined, undefined, true ); 
+          self.moveToPoint( undefined, undefined, true );
         }
         self._autoPlay();
       }
@@ -440,18 +512,22 @@ Flipsnap.prototype._touchEnd = function(event, type) {
     return;
   }
 
-  var newPoint = -self.currentX / self._distance;
-  newPoint =
-    (self.directionX > 0) ? Math.ceil(newPoint) :
-    (self.directionX < 0) ? Math.floor(newPoint) :
-    Math.round(newPoint);
+  var _newPoint = -self.currentX / self._distance;
+  var newPoint;
 
-  if (newPoint < 0) {
-    newPoint = 0;
+  _newPoint =
+    (self.directionX > 0) ? Math.ceil(_newPoint) :
+    (self.directionX < 0) ? Math.floor(_newPoint) :
+    Math.round(_newPoint);
+
+  if (_newPoint < 0) {
+    _newPoint = 0;
   }
-  else if (newPoint > self._maxPoint) {
-    newPoint = self._maxPoint;
+  else if (_newPoint > self._maxPoint) {
+    _newPoint = self._maxPoint;
   }
+
+  newPoint = self._realPointToUserPoint( _newPoint );
 
   self._touchAfter({
     moved: newPoint !== self.currentPoint,
@@ -460,7 +536,7 @@ Flipsnap.prototype._touchEnd = function(event, type) {
     cancelled: false
   });
 
-  self.moveToPoint(newPoint, undefined, true);
+  self._moveToPoint(_newPoint, undefined, true);
 };
 
 Flipsnap.prototype._click = function(event) {
@@ -505,7 +581,7 @@ Flipsnap.prototype._autoPlay = function(){
 
   clearTimeout( self._autoPlayTimeout );
   self._autoPlayTimeout = setTimeout(function(){
-    requestAnimationFrame(function(){
+    doWhenActive(function(){
       if ( self.hasNext() ) {
         self.toNext();
       }
@@ -535,7 +611,7 @@ Flipsnap.prototype._animate = function(x, transitionDuration, callback) {
   var duration = transitionDuration;
   var easing = function(time, duration) {
     return -(time /= duration) * (time - 2);
-  }; 
+  };
   self._animateTimer = setInterval(function() {
     var time = new Date() - begin;
     var pos, now;

@@ -7,7 +7,9 @@ if (!$('.demo').length) return;
 })();
 
 (function img() {
-	Flipsnap('#demo-img .flipsnap');
+	Flipsnap('#demo-img .flipsnap', {
+		loop: true
+	});
 })();
 
 (function distance() {
