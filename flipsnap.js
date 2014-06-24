@@ -48,7 +48,8 @@ support.transition = hasProp([
 support.addEventListener = 'addEventListener' in window;
 support.mspointer = window.navigator.msPointerEnabled;
 
-support.cssAnimation = (support.transform3d || support.transform) && support.transition;
+support.cssAnimation = support.transform3d && support.transition; // find touch unusable bug through transform
+support.cssAnimation = false;
 
 var doWhenActive = window.requestAnimationFrame;
 for(var x = 0; x < prefix.length && !requestAnimationFrame; ++x) {
@@ -394,6 +395,7 @@ Flipsnap.prototype._setX = function(x, transitionDuration, moveEndCallback) {
 };
 
 Flipsnap.prototype._touchStart = function(event, type) {
+  console.log(1);
   var self = this;
 
   if (self.disableTouch || self.scrolling || gestureStart) {
