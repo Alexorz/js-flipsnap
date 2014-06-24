@@ -20,6 +20,7 @@ if (!$('.demo').length) return;
 
 (function autoplay() {
 	Flipsnap('#demo-autoplay .flipsnap', {
+		loop: true,
 		transitionDuration: 700
 	}).autoPlay( 3000 );
 })();
@@ -42,6 +43,7 @@ if (!$('.demo').length) return;
 	var $demo = $('#demo-pointmove');
 	var $pointer = $demo.find('.pointer span');
 	var flipsnap = Flipsnap('#demo-pointmove .flipsnap', {
+		loop: true,
 		distance: 230
 	});
 	flipsnap.element.addEventListener('fspointmove', function() {
@@ -55,10 +57,13 @@ if (!$('.demo').length) return;
 	var $prev = $demo.find(".prev").click(function() {
 		flipsnap.toPrev();
 	});
-	flipsnap.element.addEventListener('fspointmove', function() {
+
+	function checkDisable(){
 		$next.attr("disabled", !flipsnap.hasNext());
 		$prev.attr("disabled", !flipsnap.hasPrev());
-	}, false);
+	}
+	flipsnap.element.addEventListener('fspointmove', checkDisable, false);
+	checkDisable();
 })();
 
 (function touchevents() {
