@@ -52,11 +52,11 @@ support.cssAnimation = support.transform3d && support.transition; // find touch 
 support.cssAnimation = false;
 
 var doWhenActive = window.requestAnimationFrame;
-for(var x = 0; x < prefix.length && !requestAnimationFrame; ++x) {
+for(var x = 0; x < prefix.length && !doWhenActive; ++x) {
   doWhenActive = window[prefix[x]+'RequestAnimationFrame'];
 }
 if ( !doWhenActive ) {
-  requestAnimationFrame = function( func ){ func(); };
+  doWhenActive = function( func ){ func(); };
 }
 
 var eventTypes = ['touch', 'mouse'];
