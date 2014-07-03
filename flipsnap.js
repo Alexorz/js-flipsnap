@@ -300,7 +300,7 @@ Flipsnap.prototype.toPrev = function(transitionDuration) {
 Flipsnap.prototype._realPointToUserPoint = function( _point ){
   var self = this;
 
-  return self.loop ? 
+  return self.loop ?
       ( _point < 1 ? self.maxPoint : (_point - 1) )
     : _point;
 };
@@ -395,7 +395,6 @@ Flipsnap.prototype._setX = function(x, transitionDuration, moveEndCallback) {
 };
 
 Flipsnap.prototype._touchStart = function(event, type) {
-  console.log(1);
   var self = this;
 
   if (self.disableTouch || self.scrolling || gestureStart) {
@@ -449,7 +448,7 @@ Flipsnap.prototype._touchMove = function(event, type) {
     if (newX >= 0 || newX < self._maxX) {
       newX = Math.round(self.currentX + distX / 3);
     }
- 
+
     // When distX is 0, use one previous value.
     // For android firefox. When touchend fired, touchmove also
     // fired and distX is certainly set to 0.
@@ -474,7 +473,7 @@ Flipsnap.prototype._touchMove = function(event, type) {
           newX = 0 + newX - rightRealSide ;
         }
         else if ( self.currentX < rightRealSide && newX <= self._maxX ) {
-          newX = leftRealSide + newX - self._maxX; 
+          newX = leftRealSide + newX - self._maxX;
         }
       }
     }
