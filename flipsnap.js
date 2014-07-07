@@ -49,7 +49,7 @@ support.addEventListener = 'addEventListener' in window;
 support.mspointer = window.navigator.msPointerEnabled;
 
 support.cssAnimation = support.transform3d && support.transition; // find touch unusable bug through transform
-support.cssAnimation = false;
+
 
 var doWhenActive = window.requestAnimationFrame;
 for(var x = 0; x < prefix.length && !doWhenActive; ++x) {
@@ -117,6 +117,8 @@ Flipsnap.prototype.init = function(element, opts) {
   self.disable3d = (opts.disable3d === undefined) ? false : opts.disable3d;
   self.transitionDuration = (opts.transitionDuration === undefined) ? 350 : opts.transitionDuration;
   self.loop = (opts.loop === undefined) ? false : {type:opts.loop};
+  self.autoPlayDuration = isNaN(opts.autoPlayDuration) ? 4000 : Number(opts.autoPlayDuration);
+  self._enableAutoPlay = (opts.autoPlay === undefined) ? false : opts.autoPlay;
 
   // set property
   self.currentPoint = 0;
@@ -180,6 +182,9 @@ Flipsnap.prototype.handleEvent = function(event) {
 Flipsnap.prototype.refresh = function() {
   var self = this;
 
+  // pause auto-play
+  self.pauseAutoPlay();
+
   // Remove loop fakers
   if ( self.loop ) {
     if ( self.firstLoopFaker ) {
@@ -188,8 +193,8 @@ Flipsnap.prototype.refresh = function() {
     }
   }
 
-  // Cache item count
-  self._itemLength = (function() {
+  // cache item count
+  self.itemLength = self._itemLength = (function() {
     var childNodes = self.element.childNodes,
       itemLength = 0,
       i = 0,
@@ -201,7 +206,6 @@ Flipsnap.prototype.refresh = function() {
         itemLength++;
       }
     }
-
     return itemLength;
   })();
 
@@ -229,6 +233,11 @@ Flipsnap.prototype.refresh = function() {
   self._maxX = -self._distance * self._maxPoint;
 
   self.moveToPoint(0,0);
+
+  // resume if enable auto-play
+  if ( self.isAutoPlayEnable() ) {
+    self.resumeAutoPlay();
+  }
 };
 
 Flipsnap.prototype.updateDistance = function() {
@@ -350,7 +359,7 @@ Flipsnap.prototype._moveToPoint = function(_point, transitionDuration, fromTouch
   };
   var moveEndCallback = function(){
     self._triggerEvent('fsmoveend', true, false, evData);
-    self._autoPlay();
+    self.resumeAutoPlay();
   };
 
   // Use js animation when disable css transition.
@@ -403,7 +412,8 @@ Flipsnap.prototype._touchStart = function(event, type) {
 
   clearInterval(self._animateTimer);
   clearTimeout(self._moveendTimeout);
-  clearTimeout(self._autoPlayTimeout);
+
+  self.pauseAutoPlay();
 
   self.element.addEventListener(events.move[type], self, false);
   document.addEventListener(events.end[type], self, false);
@@ -510,8 +520,6 @@ Flipsnap.prototype._touchMove = function(event, type) {
         self._triggerEvent('fsmovestart', true, false);
       }
       else {
-        clearTimeout(self._autoPlayTimeout);
-
         self._touchAfter({
           moved: false,
           originalPoint: self.currentPoint,
@@ -522,7 +530,7 @@ Flipsnap.prototype._touchMove = function(event, type) {
           self.moveToPoint( undefined, undefined, true );
         }
 
-        self._autoPlay();
+        self.resumeAutoPlay();
       }
     }
   }
@@ -587,39 +595,52 @@ Flipsnap.prototype._touchAfter = function(params) {
   self._triggerEvent('fstouchend', true, false, params);
 };
 
-Flipsnap.prototype.autoPlay = function( autoPlayDuration ){
-  this.enableAutoPlay = true;
-  this.autoPlayDuration = autoPlayDuration || this.autoPlayDuration || 4000;
-  this._autoPlay();
-  return this;
+// Auto-play interfaces: isAutoPlayEnable, autoPlay, cancleAutoPlay, pauseAutoPlay, resumeAutoPlay
+Flipsnap.prototype.isAutoPlayEnable = function( ) {
+
+  return this._enableAutoPlay && this.itemLength > 1;
 };
 
-Flipsnap.prototype.stopAutoPlay = function(){
+Flipsnap.prototype.autoPlay = function( ) {
+
+  this.enableAutoPlay = true;
+  return this.resumeAutoPlay();
+};
+
+Flipsnap.prototype.cancleAutoPlay = function(){
+
   this.enableAutoPlay = false;
+  return this.pauseAutoPlay();
+};
+
+Flipsnap.prototype.pauseAutoPlay = function(){
+
   clearTimeout( this._autoPlayTimeout );
   return this;
 };
 
-Flipsnap.prototype._autoPlay = function(){
+Flipsnap.prototype.resumeAutoPlay = function(){
   var self = this;
 
-  if ( !self.enableAutoPlay ) {
-    return;
-  }
+  if ( self.isAutoPlayEnable() ) {
 
-  clearTimeout( self._autoPlayTimeout );
-  self._autoPlayTimeout = setTimeout(function(){
-    doWhenActive(function(){
-      if ( self.hasNext() ) {
-        self.toNext();
-      }
-      else {
-        self.moveToPoint(0);
-      }
-      self._autoPlay();
-    });
-  }, self.autoPlayDuration );
+    clearTimeout( self._autoPlayTimeout );
+    self._autoPlayTimeout = setTimeout(function(){
+      doWhenActive(function(){
+        if ( self.hasNext() ) {
+          self.toNext();
+        }
+        else {
+          self.moveToPoint(0);
+        }
+        self.resumeAutoPlay();
+      });
+    }, self.autoPlayDuration );
+  }
+  return this;
 };
+
+
 
 Flipsnap.prototype._setStyle = function(styles) {
   var self = this;
