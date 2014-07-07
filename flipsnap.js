@@ -116,7 +116,7 @@ Flipsnap.prototype.init = function(element, opts) {
   self.disableCssTransition = (opts.disableCssTransition === undefined) ? false : opts.disableCssTransition;
   self.disable3d = (opts.disable3d === undefined) ? false : opts.disable3d;
   self.transitionDuration = (opts.transitionDuration === undefined) ? 350 : opts.transitionDuration;
-  self.loop = (opts.loop === undefined) ? false : {type:opts.loop};
+  self.loop = !!opts.loop;
   self.autoPlayDuration = isNaN(opts.autoPlayDuration) ? 4000 : Number(opts.autoPlayDuration);
   self._enableAutoPlay = (opts.autoPlay === undefined) ? false : opts.autoPlay;
   self.itemWidth = isNaN(opts.itemWidth) ? null : Number(opts.itemWidth);
