@@ -119,6 +119,7 @@ Flipsnap.prototype.init = function(element, opts) {
   self.loop = (opts.loop === undefined) ? false : {type:opts.loop};
   self.autoPlayDuration = isNaN(opts.autoPlayDuration) ? 4000 : Number(opts.autoPlayDuration);
   self._enableAutoPlay = (opts.autoPlay === undefined) ? false : opts.autoPlay;
+  self.itemWidth = isNaN(opts.itemWidth) ? null : Number(opts.itemWidth);
 
   // set property
   self.currentPoint = 0;
@@ -135,16 +136,16 @@ Flipsnap.prototype.init = function(element, opts) {
   // set default style
   if (support.cssAnimation) {
     self._setStyle({
-        transitionProperty: getCSSVal('transform'),
-        transitionTimingFunction: 'cubic-bezier(0,0,0.5,1)',
-        transitionDuration: '0ms',
-        transform: self._getTranslate(0)
+      transitionProperty: getCSSVal('transform'),
+      transitionTimingFunction: 'cubic-bezier(0,0,0.5,1)',
+      transitionDuration: '0ms',
+      transform: self._getTranslate(0)
     });
   }
   else {
     self._setStyle({
-        position: 'relative',
-        left: '0px'
+      position: 'relative',
+      left: '0px'
     });
   }
 
@@ -185,7 +186,7 @@ Flipsnap.prototype.refresh = function() {
   // pause auto-play
   self.pauseAutoPlay();
 
-  // Remove loop fakers & reset element width
+  // Remove loop fakers
   if ( self.firstLoopFaker ) {
     self.element.removeChild( self.firstLoopFaker );
     self.firstLoopFaker = null;
@@ -196,27 +197,24 @@ Flipsnap.prototype.refresh = function() {
   }
 
   // cache item count
-  self.itemLength = self._itemLength = (function() {
+  var items = (function() {
     var childNodes = self.element.childNodes,
-      itemLength = 0,
       i = 0,
       len = childNodes.length,
-      node;
+      node,
+      nodes = [];
     for(; i < len; i++) {
       node = childNodes[i];
       if (node.nodeType === 1) {
-        itemLength++;
+        nodes.push(node);
       }
     }
-    return itemLength;
+    return nodes;
   })();
+  self.itemLength = self._itemLength = items.length;
 
   // setting max point
   self.maxPoint = self._maxPoint = (self.opts.maxPoint === undefined) ? self._itemLength - 1 : self.opts.maxPoint;
-
-
-  // setting distance
-  self.updateDistance();
 
   // set loop changes
   if(self.loop){
@@ -224,17 +222,23 @@ Flipsnap.prototype.refresh = function() {
     var last = self.element.lastElementChild;
     self.firstLoopFaker = first.cloneNode(true);
     self.lastLoopFaker = last.cloneNode(true);
-    self.element.style.width = (self.element.scrollWidth + self.element.scrollWidth * 2 / self._itemLength ) + 'px';
     self.element.appendChild(self.firstLoopFaker);
     self.element.insertBefore(self.lastLoopFaker, self.element.firstElementChild);
     self._itemLength = self._itemLength === 0 ? 0 : ( self._itemLength + 2 );
     self._maxPoint = self._maxPoint === 0 ? 0 : ( self._maxPoint + 2 );
   }
 
+  // set scroller width
+  self.scrollWidth = self._itemLength * ( self.itemWidth || getOuterWidth(items[0]) );
+  self.element.style.width = self.scrollWidth + 'px';
+
+  // setting distance
+  self.updateDistance();
+
   // setting maxX
   self._maxX = -self._distance * self._maxPoint;
 
-  self.moveToPoint(0,0);
+  self.moveToPoint( self.currentPoint || 0,0);
 
   // resume if enable auto-play
   if ( self.isAutoPlayEnable() ) {
@@ -250,7 +254,7 @@ Flipsnap.prototype.updateDistance = function() {
       self._distance = 0;
     }
     else {
-      self._distance = self.element.scrollWidth / (self._maxPoint + 1);
+      self._distance = self.scrollWidth / (self._maxPoint + 1);
     }
   }
   else {
@@ -759,6 +763,15 @@ function setStyle(style, prop, val) {
 
 // Export as a util function.
 Flipsnap.prototype.setStyle = setStyle;
+
+
+function getOuterWidth(el){
+  // Code from https://github.com/jquery/jquery/blob/master/src/css/var/getStyles.js
+  var style = el.ownerDocument.defaultView.opener ? el.ownerDocument.defaultView.getComputedStyle( el, null )
+                                          : window.getComputedStyle( el, null );
+
+  return el.offsetWidth + Number(style['margin-left'].slice(0,-2)) + Number(style['margin-left'].slice(0,-2));
+}
 
 function getCSSVal(prop) {
   if (div.style[ prop ] !== undefined) {
