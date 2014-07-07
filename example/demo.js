@@ -21,8 +21,10 @@ if (!$('.demo').length) return;
 (function autoplay() {
 	Flipsnap('#demo-autoplay .flipsnap', {
 		loop: true,
-		transitionDuration: 700
-	}).autoPlay( 3000 );
+		transitionDuration: 700,
+		autoPlay: true,
+		autoPlayDuration: 4000 // Optional
+	});
 })();
 
 (function maxPoint() {
