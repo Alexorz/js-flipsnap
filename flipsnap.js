@@ -307,6 +307,7 @@ Flipsnap.prototype.toPrev = function(transitionDuration) {
   if ( self.loop && self.currentPoint === 0 ) {
     self.animation = false;
     self._setStyle({ transitionDuration: '0ms' });
+    // Timeout for IE 11
     setTimeout(function(){
       self._setX(self._maxX, 0);
       setTimeout(function(){
