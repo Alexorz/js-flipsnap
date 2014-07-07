@@ -769,8 +769,7 @@ function getOuterWidth(el){
   // Code from https://github.com/jquery/jquery/blob/master/src/css/var/getStyles.js
   var style = el.ownerDocument.defaultView.opener ? el.ownerDocument.defaultView.getComputedStyle( el, null )
                                           : window.getComputedStyle( el, null );
-
-  return el.offsetWidth + Number(style['margin-left'].slice(0,-2)) + Number(style['margin-left'].slice(0,-2));
+  return el.offsetWidth + Number((style['margin-left'] || '').slice(0,-2)) + Number((style['margin-left'] || '').slice(0,-2));
 }
 
 function getCSSVal(prop) {
