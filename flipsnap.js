@@ -185,12 +185,14 @@ Flipsnap.prototype.refresh = function() {
   // pause auto-play
   self.pauseAutoPlay();
 
-  // Remove loop fakers
-  if ( self.loop ) {
-    if ( self.firstLoopFaker ) {
-        self.element.removeChild( self.firstLoopFaker );
-        self.element.removeChild( self.lastLoopFaker );
-    }
+  // Remove loop fakers & reset element width
+  if ( self.firstLoopFaker ) {
+    self.element.removeChild( self.firstLoopFaker );
+    self.firstLoopFaker = null;
+  }
+  if ( self.lastLoopFaker ) {
+    self.element.removeChild( self.lastLoopFaker );
+    self.lastLoopFaker = null;
   }
 
   // cache item count
@@ -315,21 +317,21 @@ Flipsnap.prototype._realPointToUserPoint = function( _point ){
 };
 
 Flipsnap.prototype.moveToPoint = function(point, transitionDuration, fromTouch) {
-    var self = this;
-    var _point;
+  var self = this;
+  var _point;
 
-    if ( point === undefined ) {
-      point = self.currentPoint;
+  if ( point === undefined ) {
+    point = self.currentPoint;
+  }
+  else {
+    if (point < 0 || isNaN( point ) ) {
+      point = 0;
     }
-    else {
-        if (point < 0 || isNaN( point ) ) {
-          point = 0;
-        }
-        else if (point > self.maxPoint) {
-          point = self.maxPoint;
-      }
+    else if (point > self.maxPoint) {
+      point = self.maxPoint;
     }
-    self._moveToPoint( self.loop ? point + 1 : point, transitionDuration, fromTouch );
+  }
+  self._moveToPoint( self.loop ? point + 1 : point, transitionDuration, fromTouch );
 };
 
 Flipsnap.prototype._moveToPoint = function(_point, transitionDuration, fromTouch ) {
