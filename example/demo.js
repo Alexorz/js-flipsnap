@@ -6,7 +6,7 @@ if (!$('.demo').length) return;
 	Flipsnap('#demo-simple .flipsnap');
 })();
 
-(function img() {
+(function loop() {
 	Flipsnap('#demo-loop .flipsnap', {
 		loop: true
 	});
@@ -19,11 +19,16 @@ if (!$('.demo').length) return;
 })();
 
 (function autoplay() {
-	Flipsnap('#demo-autoplay .flipsnap', {
-		loop: true,
+	var $flipsnap = Flipsnap('#demo-autoplay .flipsnap', {
 		transitionDuration: 700,
 		autoPlay: true,
 		autoPlayDuration: 4000 // Optional
+	});
+
+	var $loopToggle = $('#demo-autoplay .isLoop');
+	$loopToggle.change(function(){
+		$flipsnap.loop = this.checked;
+		$flipsnap.refresh();
 	});
 })();
 
@@ -45,7 +50,6 @@ if (!$('.demo').length) return;
 	var $demo = $('#demo-pointmove');
 	var $pointer = $demo.find('.pointer span');
 	var flipsnap = Flipsnap('#demo-pointmove .flipsnap', {
-		loop: true,
 		distance: 230
 	});
 	flipsnap.element.addEventListener('fspointmove', function() {
