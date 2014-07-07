@@ -19,13 +19,14 @@ if (!$('.demo').length) return;
 })();
 
 (function autoplay() {
+	var $loopToggle = $('#demo-autoplay .isLoop');
 	var $flipsnap = Flipsnap('#demo-autoplay .flipsnap', {
+		loop: $loopToggle[0].checked,
 		transitionDuration: 700,
 		autoPlay: true,
 		autoPlayDuration: 4000 // Optional
 	});
 
-	var $loopToggle = $('#demo-autoplay .isLoop');
 	$loopToggle.change(function(){
 		$flipsnap.loop = this.checked;
 		$flipsnap.refresh();

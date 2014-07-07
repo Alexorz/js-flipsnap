@@ -282,6 +282,7 @@ Flipsnap.prototype.toNext = function(transitionDuration) {
   }
 
   if ( self.loop && self.currentPoint >= self.maxPoint ) {
+    self.animation = false;
     self._setStyle({ transitionDuration: '0ms' });
     self._setX(0, 0);
     setTimeout(function(){
@@ -301,6 +302,7 @@ Flipsnap.prototype.toPrev = function(transitionDuration) {
   }
 
   if ( self.loop && self.currentPoint === 0 ) {
+    self.animation = false;
     self._setStyle({ transitionDuration: '0ms' });
     self._setX(self._maxX, 0);
     setTimeout(function(){
