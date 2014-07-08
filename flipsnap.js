@@ -282,6 +282,7 @@ Flipsnap.prototype.toNext = function(transitionDuration) {
   }
 
   if ( self.loop && self.currentPoint >= self.maxPoint ) {
+    debugger;
     self.animation = false;
     self._setStyle({ transitionDuration: '0ms' });
     // Timeout for IE 11
@@ -289,8 +290,8 @@ Flipsnap.prototype.toNext = function(transitionDuration) {
       self._setX(0, 0);
       setTimeout(function(){
         self.moveToPoint(0, transitionDuration);
-      }, 0);
-    }, 0);
+      }, 10);
+    }, 10);
   }
   else {
     self.moveToPoint(self.currentPoint + 1, transitionDuration);
@@ -312,8 +313,8 @@ Flipsnap.prototype.toPrev = function(transitionDuration) {
       self._setX(self._maxX, 0);
       setTimeout(function(){
         self.moveToPoint(self.maxPoint, transitionDuration);
-      }, 0);
-    }, 0);
+      }, 10);
+    }, 10);
   }
   else {
     self.moveToPoint(self.currentPoint - 1, transitionDuration);
