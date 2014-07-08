@@ -118,7 +118,7 @@ Flipsnap.prototype.init = function(element, opts) {
   self.transitionDuration = (opts.transitionDuration === undefined) ? 350 : opts.transitionDuration;
   self.loop = !!opts.loop;
   self.autoPlayDuration = isNaN(opts.autoPlayDuration) ? 4000 : Number(opts.autoPlayDuration);
-  self._enableAutoPlay = (opts.autoPlay === undefined) ? false : opts.autoPlay;
+  self.enableAutoPlay = (opts.enableAutoPlay === undefined) ? false : opts.enableAutoPlay;
   self.itemWidth = isNaN(opts.itemWidth) ? null : Number(opts.itemWidth);
 
   // set property
@@ -613,7 +613,7 @@ Flipsnap.prototype._touchAfter = function(params) {
 // Auto-play interfaces: isAutoPlayEnable, autoPlay, cancleAutoPlay, pauseAutoPlay, resumeAutoPlay
 Flipsnap.prototype.isAutoPlayEnable = function( ) {
 
-  return this._enableAutoPlay && this.itemLength > 1;
+  return this.enableAutoPlay && this.itemLength > 1;
 };
 
 Flipsnap.prototype.autoPlay = function( ) {
