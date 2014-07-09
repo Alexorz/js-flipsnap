@@ -197,7 +197,7 @@ Flipsnap.prototype.refresh = function() {
   }
 
   // cache item count
-  var items = (function() {
+  var items = self.items = (function() {
     var childNodes = self.element.childNodes,
       i = 0,
       len = childNodes.length,
@@ -226,14 +226,23 @@ Flipsnap.prototype.refresh = function() {
     self.element.insertBefore(self.lastLoopFaker, self.element.firstElementChild);
     self._itemLength = self._itemLength === 0 ? 0 : ( self._itemLength + 2 );
     self._maxPoint = self._maxPoint === 0 ? 0 : ( self._maxPoint + 2 );
+    items.push(self.firstLoopFaker);
+    items.unshift(self.lastLoopFaker);
   }
 
   // set scroller width
-  self.scrollWidth = self._itemLength * ( self.itemWidth || getOuterWidth(items[0]) );
+  self.scrollWidth = items.length < 1 ? 0 : self._itemLength * ( self.itemWidth || getOuterWidth(items[0]) );
   self.element.style.width = self.scrollWidth + 'px';
 
   // setting distance
   self.updateDistance();
+
+  // cache images
+  var itemImgs = self.itemImgs = [];
+  for(var i=0, l=items.length; i<l; i++) {
+    var imgs = items[i].getElementsByTagName('img');
+    itemImgs[i] = findLazyImgs(imgs);
+  }
 
   // setting maxX
   self._maxX = -self._distance * self._maxPoint;
@@ -282,7 +291,6 @@ Flipsnap.prototype.toNext = function(transitionDuration) {
   }
 
   if ( self.loop && self.currentPoint >= self.maxPoint ) {
-    debugger;
     self.animation = false;
     self._setStyle({ transitionDuration: '0ms' });
     // Timeout for IE 11
@@ -355,11 +363,14 @@ Flipsnap.prototype._moveToPoint = function(_point, transitionDuration, fromTouch
   // When not manually touch.
   if ( !fromTouch ) {
     self._triggerEvent('fsmovestart', true, false);
+
+    // Set lazy img before non-manually point move
+    self.showItemLazyImgs( _point );
   }
 
   transitionDuration = transitionDuration === undefined
     ? self.transitionDuration : transitionDuration;
-  // point loop show for user.
+  // point show for user.
   var point = self._realPointToUserPoint( _point );
   var beforePoint = self.currentPoint;
   var _beforePoint = self._currentPoint;
@@ -639,9 +650,16 @@ Flipsnap.prototype.resumeAutoPlay = function(){
 
   if ( self.isAutoPlayEnable() ) {
 
-    clearTimeout( self._autoPlayTimeout );
+    var nextIndex = (self._currentPoint + 1) % self._itemLength;
+    var waitCount = 2;
+
+    var checkAllDone = function(){
+      if ( waitCount === 0 ) {
+        // Do after finish load image & auto-play timeout.
+
+        self.showItemLazyImgs( nextIndex );
+
     self._autoPlayTimeout = setTimeout(function(){
-      doWhenActive(function(){
         if ( self.hasNext() ) {
           self.toNext();
         }
@@ -649,8 +667,23 @@ Flipsnap.prototype.resumeAutoPlay = function(){
           self.moveToPoint(0);
         }
         self.resumeAutoPlay();
+        }, self.autoPlayDuration / 3);
+      }
+    };
+
+    self.loadItemLazyImgs( nextIndex, function(){
+      waitCount--;
+      checkAllDone();
+    });
+
+    clearTimeout( self._autoPlayTimeout );
+    self._autoPlayTimeout = setTimeout(function(){
+      doWhenActive(function(){
+        waitCount--;
+        checkAllDone();
       });
-    }, self.autoPlayDuration );
+    }, self.autoPlayDuration * 2 / 3);
+
   }
   return this;
 };
@@ -773,6 +806,78 @@ function setStyle(style, prop, val) {
 // Export as a util function.
 Flipsnap.prototype.setStyle = setStyle;
 
+
+// Functions for image lazy load.
+function findLazyImgs(imgs){
+  var res = [];
+  for(var i=0, l=imgs.length; i<l; i++) {
+    if ( isLazyImg(imgs[i]) ){
+      res.push(imgs[i]);
+    }
+  }
+  return res;
+}
+
+function isLazyImg(img){
+  return !!img.getAttribute('lazy-src');
+}
+
+Flipsnap.prototype.showItemLazyImgs = function( _index ){
+  var self = this;
+
+  var imgs = self.itemImgs[_index];
+
+  if ( self.loop ) {
+    if ( _index == 1 ) {
+      imgs = imgs.concat( self.itemImgs[ self._itemLength - 1 ] );
+    }
+    else if ( _index == self._itemLength - 2 ) {
+      imgs = imgs.concat( self.itemImgs[ 0 ] );
+    }
+  }
+
+  for( var i=0, l= imgs.length; i<l; i++ ) {
+    setLazyImg( imgs[i] );
+  }
+}
+
+Flipsnap.prototype.loadItemLazyImgs = function( _index, callback ){
+  var self = this;
+
+  var imgs = self.itemImgs[_index];
+  var waitCount = imgs.length;
+
+  for( var i=0, l= imgs.length; i<l; i++ ) {
+    loadLazyImg( imgs[i], function(){
+      if ( --waitCount == 0 && typeof callback == 'function' ) {
+        callback();
+      }
+    });
+  }
+}
+
+function setLazyImg(img){
+  var lazySrc = img.getAttribute('lazy-src');
+  if ( lazySrc && img.src != lazySrc ) {
+    img.src = lazySrc;
+  }
+}
+
+var imgLoadedMap = {};
+
+function loadLazyImg(img, callback){
+
+  var lazySrc = img.getAttribute('lazy-src');
+  if ( !imgLoadedMap[ lazySrc ] ) {
+    var loader = new Image();
+    loader.onload = loader.onerror = callback;
+    loader.src = img.getAttribute('lazy-src');
+    imgLoadedMap[ lazySrc ] = true;
+  }
+  else {
+    callback();
+  }
+}
 
 function getOuterWidth(el){
   // Code from https://github.com/jquery/jquery/blob/master/src/css/var/getStyles.js
