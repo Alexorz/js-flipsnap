@@ -491,6 +491,10 @@ Flipsnap.prototype._touchStart = function(event, type) {
 
   // Show next lazy image when manually touch start.
   self.showItemLazyImgs( ( self.currentPoint + 1 ) % self.itemLength );
+  // When loop mode, user maybe snap left and left.
+  if ( self.loop ) {
+    self.showItemLazyImgs( ( self.itemLength + self.currentPoint - 1 ) % self.itemLength );
+  }
 };
 
 Flipsnap.prototype._touchMove = function(event, type) {
