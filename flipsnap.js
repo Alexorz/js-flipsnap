@@ -405,7 +405,7 @@ Flipsnap.prototype._moveToPoint = function(_point, transitionDuration, fromTouch
       self.nextImgLazyDfd = self.loadItemLazyImgs( nextIndex, function(){
         self.showItemLazyImgs( nextIndex );
       });
-    }, 100 / 6)
+    }, 100 / 6);
 
   };
 
@@ -714,34 +714,6 @@ Flipsnap.prototype.resumeAutoPlay = function(){
 
     clearTimeout( self._autoPlayTimeout );
     self._autoPlayTimeout = setTimeout(checkAllDone, self.autoPlayDuration * 2  / 3);
-
-
-        // var nextIndex = (self.currentPoint + 1) % self.itemLength;
-        // var waitCount = 2;
-        //
-        // var checkAllDone = function(){
-        //   if ( --waitCount === 0 ) {
-        //     // Do after finish load image & auto-play timeout.
-        //
-        //     self.showItemLazyImgs( nextIndex );
-        //
-        //     // Next step
-        //     doWhenActive(function(){
-        //       self._autoPlayTimeout = setTimeout(function(){
-        //         if ( self.hasNext() ) {
-        //           self.toNext();
-        //         }
-        //         else {
-        //           self.moveToPoint(0);
-        //         }
-        //       }, self.autoPlayDuration / 3);
-        //     });
-        //   }
-        // };
-        // self.loadItemLazyImgs( nextIndex, checkAllDone);
-        //
-        // clearTimeout( self._autoPlayTimeout );
-        // self._autoPlayTimeout = setTimeout(checkAllDone, self.autoPlayDuration * 2 / 3);
 
   }
   return this;

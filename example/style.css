@@ -72,6 +72,7 @@ h1, h2, h3 {
   padding: 0; }
 #demo-lazy .item {
   width: 320px;
+  height: 180px;
   padding: 0;
   margin: 0;
   border: 0;  }
