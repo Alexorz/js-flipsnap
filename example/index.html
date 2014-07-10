@@ -15,7 +15,7 @@
 <section>
 	<h2>Demo</h2>
 	<section class="demo" id="demo-simple">
-		<h3>simple</h3>
+		<h3>General usage</h3>
 		<div class="viewport">
 			<div class="flipsnap">
 				<div class="item">1</div>
@@ -23,20 +23,29 @@
 				<div class="item">3</div>
 			</div>
 		</div>
-	</section>
-
-	<section class="demo" id="demo-loop">
-		<h3>loop</h3>
-		<div class="viewport">
-			<div class="flipsnap">
-				<div class="item">1</div>
-				<div class="item">2</div>
-				<div class="item">3</div>
+		<div class="controls">
+			<div>
+				<label>Loop <input type="checkbox" class="isLoop" ></label>
+			</div>
+			<div>
+				<label>Auto-play <input type="checkbox" class="isAutoplay" ></label>
 			</div>
 		</div>
 	</section>
 
-	<section class="demo" id="demo-autoplay">
+	<section class="demo" id="demo-lazy">
+		<h3>Image lazy-load</h3>
+		<div class="viewport">
+			<div class="flipsnap">
+				<div class="item"> <img width="320" height="180" lazy-src="img/small-img-1.jpg" lazy-srcset="img/small-img-1.jpg 1x, img/r-small-img-1.jpg 2x"> </div>
+				<div class="item"> <img width="320" height="180" lazy-src="img/small-img-2.jpg" lazy-srcset="img/small-img-2.jpg 1x, img/r-small-img-2.jpg 2x"> </div>
+				<div class="item"> <img width="320" height="180" lazy-src="img/small-img-3.jpg" lazy-srcset="img/small-img-3.jpg 1x, img/r-small-img-3.jpg 2x"> </div>
+				<div class="item"> <img width="320" height="180" lazy-src="img/small-img-4.jpg" lazy-srcset="img/small-img-4.jpg 1x, img/r-small-img-4.jpg 2x"> </div>
+			</div>
+		</div>
+	</section>
+
+	<!-- <section class="demo" id="demo-autoplay">
 		<h3>autoplay</h3>
 		<div class="viewport">
 			<div class="flipsnap">
@@ -48,7 +57,7 @@
 		<p class="controls">
 			<label>Loop <input type="checkbox" class="isLoop" ></label>
 		</p>
-	</section>
+	</section> -->
 
 	<section class="demo" id="demo-distance">
 		<h3>distance</h3>

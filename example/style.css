@@ -67,12 +67,14 @@ h1, h2, h3 {
   width: 310px;
   margin: 0; }
 
-#demo-loop .flipsnap {
+#demo-lazy .flipsnap {
   width: 960px;
   padding: 0; }
-#demo-loop .item {
-  width: 310px;
-  margin: 0; }
+#demo-lazy .item {
+  width: 320px;
+  padding: 0;
+  margin: 0;
+  border: 0;  }
 
 #demo-autoplay .flipsnap {
   width: 960px;

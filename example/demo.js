@@ -3,33 +3,48 @@ $(function() {
 if (!$('.demo').length) return;
 
 (function simple() {
-	Flipsnap('#demo-simple .flipsnap');
+	var $loopToggle = $('#demo-simple .isLoop');
+	var $autoplayToggle = $('#demo-simple .isAutoplay');
+	var $flipsnap = Flipsnap('#demo-simple .flipsnap', {
+		loop: $loopToggle[0].checked
+	});
+
+	$loopToggle.change(function(){
+		$flipsnap.loop = this.checked;
+		$flipsnap.refresh();
+	});
+	$autoplayToggle.change(function(){
+		$flipsnap.enableAutoPlay = this.checked;
+		$flipsnap.refresh();
+	});
 })();
 
-(function loop() {
-	Flipsnap('#demo-loop .flipsnap', {
-		loop: true
+// (function autoplay() {
+// 	var $loopToggle = $('#demo-autoplay .isLoop');
+// 	var $flipsnap = Flipsnap('#demo-autoplay .flipsnap', {
+// 		loop: $loopToggle[0].checked,
+// 		transitionDuration: 700,
+// 		autoPlay: true,
+// 		autoPlayDuration: 4000 // Optional
+// 	});
+//
+// 	$loopToggle.change(function(){
+// 		$flipsnap.loop = this.checked;
+// 		$flipsnap.refresh();
+// 	});
+// })();
+
+(function lazy() {
+	Flipsnap('#demo-lazy .flipsnap',{
+		loop: true,
+		enableAutoPlay: true,
+		transitionDuration: 500
 	});
 })();
 
 (function distance() {
 	Flipsnap('#demo-distance .flipsnap', {
 		distance: 230
-	});
-})();
-
-(function autoplay() {
-	var $loopToggle = $('#demo-autoplay .isLoop');
-	var $flipsnap = Flipsnap('#demo-autoplay .flipsnap', {
-		loop: $loopToggle[0].checked,
-		transitionDuration: 700,
-		autoPlay: true,
-		autoPlayDuration: 4000 // Optional
-	});
-
-	$loopToggle.change(function(){
-		$flipsnap.loop = this.checked;
-		$flipsnap.refresh();
 	});
 })();
 

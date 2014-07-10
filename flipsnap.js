@@ -45,6 +45,8 @@ support.transition = hasProp([
   'msTransitionProperty'
 ]);
 
+
+support.srcset = typeof new Image().srcset != 'undefined';
 support.addEventListener = 'addEventListener' in window;
 support.mspointer = window.navigator.msPointerEnabled;
 
@@ -272,21 +274,19 @@ Flipsnap.prototype.updateDistance = function() {
 };
 
 Flipsnap.prototype.hasNext = function() {
-  var self = this;
 
-  return self.loop ? true : self.currentPoint < self.maxPoint;
+  return this.loop ? true : this.currentPoint < this.maxPoint;
 };
 
 Flipsnap.prototype.hasPrev = function() {
-  var self = this;
 
-  return self.loop ? true : self.currentPoint > 0;
+  return this.loop ? true : this.currentPoint > 0;
 };
 
 Flipsnap.prototype.toNext = function(transitionDuration) {
   var self = this;
 
-  if (!self.hasNext()) {
+  if ( !self.hasNext()) {
     return;
   }
 
@@ -330,11 +330,13 @@ Flipsnap.prototype.toPrev = function(transitionDuration) {
 };
 
 Flipsnap.prototype._realPointToUserPoint = function( _point ){
-  var self = this;
 
-  return self.loop ?
-      ( _point < 1 ? self.maxPoint : (_point - 1) )
-    : _point;
+  return this.loop ? ( _point < 1 ? self.maxPoint : (_point - 1) ) : _point;
+};
+
+Flipsnap.prototype._userPointToRealPoint = function( point ){
+
+  return this.loop ? point + 1 : point;
 };
 
 Flipsnap.prototype.moveToPoint = function(point, transitionDuration, fromTouch) {
@@ -360,20 +362,22 @@ Flipsnap.prototype._moveToPoint = function(_point, transitionDuration, fromTouch
 
   clearTimeout(self._moveendTimeout);
   clearTimeout(self._autoPlayTimeout);
-  // When not manually touch.
-  if ( !fromTouch ) {
-    self._triggerEvent('fsmovestart', true, false);
 
-    // Set lazy img before non-manually point move
-    self.showItemLazyImgs( _point );
-  }
-
-  transitionDuration = transitionDuration === undefined
-    ? self.transitionDuration : transitionDuration;
   // point show for user.
   var point = self._realPointToUserPoint( _point );
   var beforePoint = self.currentPoint;
   var _beforePoint = self._currentPoint;
+
+  // When not manually touch.
+  if ( !fromTouch ) {
+    self._triggerEvent('fsmovestart', true, false);
+
+    // Set lazy img before non-manually point move.
+    self.showItemLazyImgs( point );
+  }
+
+  transitionDuration = transitionDuration === undefined
+    ? self.transitionDuration : transitionDuration;
 
   self.currentPoint = point;
   self._currentPoint = _point;
@@ -385,7 +389,24 @@ Flipsnap.prototype._moveToPoint = function(_point, transitionDuration, fromTouch
   };
   var moveEndCallback = function(){
     self._triggerEvent('fsmoveend', true, false, evData);
-    self.resumeAutoPlay();
+    // Resume auto-play after moveend.
+    if ( self.isAutoPlayEnable() ) {
+      self.resumeAutoPlay();
+    }
+
+    // Show lazy image after animation when manually touching.
+    if ( fromTouch ) {
+      self.showItemLazyImgs( point );
+    }
+
+    // Load next lazy image.
+    var nextIndex = (point + 1) % self.itemLength;
+    setTimeout(function(){
+      self.nextImgLazyDfd = self.loadItemLazyImgs( nextIndex, function(){
+        self.showItemLazyImgs( nextIndex );
+      });
+    }, 100 / 6)
+
   };
 
   // Use js animation when disable css transition.
@@ -439,7 +460,13 @@ Flipsnap.prototype._touchStart = function(event, type) {
   clearInterval(self._animateTimer);
   clearTimeout(self._moveendTimeout);
 
+  // Pause auto-play.
   self.pauseAutoPlay();
+
+  // Pause image lazy load.
+  if ( self.nextImgLazyDfd ) {
+    self.nextImgLazyDfd.reject();
+  }
 
   self.element.addEventListener(events.move[type], self, false);
   document.addEventListener(events.end[type], self, false);
@@ -461,6 +488,9 @@ Flipsnap.prototype._touchStart = function(event, type) {
   self.directionX = 0;
   self.startTime = event.timeStamp;
   self._triggerEvent('fstouchstart', true, false);
+
+  // Show next lazy image when manually touch start.
+  self.showItemLazyImgs( ( self.currentPoint + 1 ) % self.itemLength );
 };
 
 Flipsnap.prototype._touchMove = function(event, type) {
@@ -544,6 +574,8 @@ Flipsnap.prototype._touchMove = function(event, type) {
         self.moveReady = true;
         self.element.addEventListener('click', self, true);
         self._triggerEvent('fsmovestart', true, false);
+        // Load lazy images in next item.
+        self.loadItemLazyImgs( (self.currentPoint + self.directionX) % self.itemLength );
       }
       else {
         self._touchAfter({
@@ -556,7 +588,9 @@ Flipsnap.prototype._touchMove = function(event, type) {
           self.moveToPoint( undefined, undefined, true );
         }
 
-        self.resumeAutoPlay();
+        if ( self.isAutoPlayEnable() ) {
+          self.resumeAutoPlay();
+        }
       }
     }
   }
@@ -650,39 +684,64 @@ Flipsnap.prototype.resumeAutoPlay = function(){
 
   if ( self.isAutoPlayEnable() ) {
 
-    var nextIndex = (self._currentPoint + 1) % self._itemLength;
+    var nextIndex = (self.currentPoint + 1) % self.itemLength;
     var waitCount = 2;
 
     var checkAllDone = function(){
-      if ( waitCount === 0 ) {
+      if ( --waitCount === 0 ) {
         // Do after finish load image & auto-play timeout.
 
-        self.showItemLazyImgs( nextIndex );
-
-    self._autoPlayTimeout = setTimeout(function(){
-        if ( self.hasNext() ) {
-          self.toNext();
-        }
-        else {
-          self.moveToPoint(0);
-        }
-        self.resumeAutoPlay();
-        }, self.autoPlayDuration / 3);
+        // Next step
+        doWhenActive(function(){
+          self._autoPlayTimeout = setTimeout(function(){
+            if ( self.hasNext() ) {
+              self.toNext();
+            }
+            else {
+              self.moveToPoint(0);
+            }
+          }, self.autoPlayDuration / 3);
+        });
       }
     };
 
-    self.loadItemLazyImgs( nextIndex, function(){
-      waitCount--;
+    if ( self.nextImgLazyDfd ) {
+      self.nextImgLazyDfd.always( checkAllDone );
+    }
+    else {
       checkAllDone();
-    });
+    }
 
     clearTimeout( self._autoPlayTimeout );
-    self._autoPlayTimeout = setTimeout(function(){
-      doWhenActive(function(){
-        waitCount--;
-        checkAllDone();
-      });
-    }, self.autoPlayDuration * 2 / 3);
+    self._autoPlayTimeout = setTimeout(checkAllDone, self.autoPlayDuration * 2  / 3);
+
+
+        // var nextIndex = (self.currentPoint + 1) % self.itemLength;
+        // var waitCount = 2;
+        //
+        // var checkAllDone = function(){
+        //   if ( --waitCount === 0 ) {
+        //     // Do after finish load image & auto-play timeout.
+        //
+        //     self.showItemLazyImgs( nextIndex );
+        //
+        //     // Next step
+        //     doWhenActive(function(){
+        //       self._autoPlayTimeout = setTimeout(function(){
+        //         if ( self.hasNext() ) {
+        //           self.toNext();
+        //         }
+        //         else {
+        //           self.moveToPoint(0);
+        //         }
+        //       }, self.autoPlayDuration / 3);
+        //     });
+        //   }
+        // };
+        // self.loadItemLazyImgs( nextIndex, checkAllDone);
+        //
+        // clearTimeout( self._autoPlayTimeout );
+        // self._autoPlayTimeout = setTimeout(checkAllDone, self.autoPlayDuration * 2 / 3);
 
   }
   return this;
@@ -822,16 +881,21 @@ function isLazyImg(img){
   return !!img.getAttribute('lazy-src');
 }
 
-Flipsnap.prototype.showItemLazyImgs = function( _index ){
+Flipsnap.prototype.showItemLazyImgs = function( index ){
   var self = this;
 
+  var _index = self._userPointToRealPoint(index);
   var imgs = self.itemImgs[_index];
 
+  if ( !imgs || !imgs.length ) {
+    return ;
+  }
+
   if ( self.loop ) {
-    if ( _index == 1 ) {
+    if ( index == 0 ) {
       imgs = imgs.concat( self.itemImgs[ self._itemLength - 1 ] );
     }
-    else if ( _index == self._itemLength - 2 ) {
+    else if ( index == self.itemLength - 1 ) {
       imgs = imgs.concat( self.itemImgs[ 0 ] );
     }
   }
@@ -841,38 +905,76 @@ Flipsnap.prototype.showItemLazyImgs = function( _index ){
   }
 }
 
-Flipsnap.prototype.loadItemLazyImgs = function( _index, callback ){
+Flipsnap.prototype.loadItemLazyImgs = function( index, callback ){
   var self = this;
 
+  var _index = self._userPointToRealPoint(index);
   var imgs = self.itemImgs[_index];
+
+  if ( !imgs || !imgs.length ) {
+    return ;
+  }
+
   var waitCount = imgs.length;
+  var dfd = {
+    status: 'padding',
+    callbacks: [],
+    status: function (){ return status; },
+    reject: function (){ this.status = 'fail'; },
+    always: function( callback ){
+      if ( typeof callback == 'function' ) {
+        if ( this.status == 'success' || this.status == 'fail' ) {
+          callback();
+        }
+        else {
+          this.callbacks.push( callback );
+        }
+      }
+    }
+  };
+
+  dfd.always( callback );
 
   for( var i=0, l= imgs.length; i<l; i++ ) {
     loadLazyImg( imgs[i], function(){
-      if ( --waitCount == 0 && typeof callback == 'function' ) {
-        callback();
+      if ( --waitCount == 0 && dfd.status != 'fail' ) {
+        dfd.status = 'success';
+        for( var i=0, l=dfd.callbacks.length; i<l; i++ ) {
+          dfd.callbacks[i]();
+        }
       }
     });
   }
+
+  return dfd;
 }
 
 function setLazyImg(img){
   var lazySrc = img.getAttribute('lazy-src');
-  if ( lazySrc && img.src != lazySrc ) {
-    img.src = lazySrc;
+  var lazySrcset = img.getAttribute('lazy-srcset');
+  var setedSrc = img.getAttribute('seted-lazy-src');
+  var useSrcset = support.srcset && lazySrcset;
+  var id = useSrcset ? lazySrcset : lazySrc;
+
+  if ( id && setedSrc != id ) {
+    img[ useSrcset ? 'srcset' : 'src' ] = useSrcset ? lazySrcset : lazySrc;
+    img.setAttribute('seted-lazy-src', id);
   }
 }
 
 var imgLoadedMap = {};
 
 function loadLazyImg(img, callback){
-
+  var loader = new Image();
   var lazySrc = img.getAttribute('lazy-src');
-  if ( !imgLoadedMap[ lazySrc ] ) {
-    var loader = new Image();
+  var lazySrcset = img.getAttribute('lazy-srcset');
+  var useSrcset = support.srcset && lazySrcset;
+  var id = useSrcset ? lazySrcset : lazySrc;
+
+  if ( id && !imgLoadedMap[ id ] ) {
     loader.onload = loader.onerror = callback;
-    loader.src = img.getAttribute('lazy-src');
-    imgLoadedMap[ lazySrc ] = true;
+    loader[ useSrcset ? 'srcset' : 'src' ] = useSrcset ? lazySrcset : lazySrc;
+    imgLoadedMap[ id ] = true;
   }
   else {
     callback();
