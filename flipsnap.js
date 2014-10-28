@@ -227,7 +227,7 @@ Flipsnap.prototype.refresh = function() {
     self.element.appendChild(self.firstLoopFaker);
     self.element.insertBefore(self.lastLoopFaker, self.element.firstElementChild);
     self._itemLength = self._itemLength === 0 ? 0 : ( self._itemLength + 2 );
-    self._maxPoint = self._maxPoint === 0 ? 0 : ( self._maxPoint + 2 );
+    self._maxPoint = self._maxPoint < 0 ? self._maxPoint : ( self._maxPoint + 2 );
     items.push(self.firstLoopFaker);
     items.unshift(self.lastLoopFaker);
   }
