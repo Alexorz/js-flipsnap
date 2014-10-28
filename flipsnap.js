@@ -871,7 +871,7 @@ Flipsnap.prototype.showItemLazyImgs = function( index ){
     if ( index == 0 ) {
       imgs = imgs.concat( self.itemImgs[ self._itemLength - 1 ] );
     }
-    else if ( index == self.itemLength - 1 ) {
+    if ( index == self.itemLength - 1 ) {
       imgs = imgs.concat( self.itemImgs[ 0 ] );
     }
   }
