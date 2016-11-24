@@ -45,18 +45,20 @@ support.transition = hasProp([
   'msTransitionProperty'
 ]);
 
+
+support.srcset = typeof new Image().srcset != 'undefined';
 support.addEventListener = 'addEventListener' in window;
 support.mspointer = window.navigator.msPointerEnabled;
 
 support.cssAnimation = support.transform3d && support.transition; // find touch unusable bug through transform
-support.cssAnimation = false;
+
 
 var doWhenActive = window.requestAnimationFrame;
-for(var x = 0; x < prefix.length && !requestAnimationFrame; ++x) {
+for(var x = 0; x < prefix.length && !doWhenActive; ++x) {
   doWhenActive = window[prefix[x]+'RequestAnimationFrame'];
 }
 if ( !doWhenActive ) {
-  requestAnimationFrame = function( func ){ func(); };
+  doWhenActive = function( func ){ func(); };
 }
 
 var eventTypes = ['touch', 'mouse'];
@@ -116,7 +118,10 @@ Flipsnap.prototype.init = function(element, opts) {
   self.disableCssTransition = (opts.disableCssTransition === undefined) ? false : opts.disableCssTransition;
   self.disable3d = (opts.disable3d === undefined) ? false : opts.disable3d;
   self.transitionDuration = (opts.transitionDuration === undefined) ? 350 : opts.transitionDuration;
-  self.loop = (opts.loop === undefined) ? false : {type:opts.loop};
+  self.loop = !!opts.loop;
+  self.autoPlayDuration = isNaN(opts.autoPlayDuration) ? 4000 : Number(opts.autoPlayDuration);
+  self.enableAutoPlay = (opts.enableAutoPlay === undefined) ? false : opts.enableAutoPlay;
+  self.itemWidth = isNaN(opts.itemWidth) ? null : Number(opts.itemWidth);
 
   // set property
   self.currentPoint = 0;
@@ -133,16 +138,16 @@ Flipsnap.prototype.init = function(element, opts) {
   // set default style
   if (support.cssAnimation) {
     self._setStyle({
-        transitionProperty: getCSSVal('transform'),
-        transitionTimingFunction: 'cubic-bezier(0,0,0.5,1)',
-        transitionDuration: '0ms',
-        transform: self._getTranslate(0)
+      transitionProperty: getCSSVal('transform'),
+      transitionTimingFunction: 'cubic-bezier(0,0,0.5,1)',
+      transitionDuration: '0ms',
+      transform: self._getTranslate(0)
     });
   }
   else {
     self._setStyle({
-        position: 'relative',
-        left: '0px'
+      position: 'relative',
+      left: '0px'
     });
   }
 
@@ -180,37 +185,38 @@ Flipsnap.prototype.handleEvent = function(event) {
 Flipsnap.prototype.refresh = function() {
   var self = this;
 
+  // pause auto-play
+  self.pauseAutoPlay();
+
   // Remove loop fakers
-  if ( self.loop ) {
-    if ( self.firstLoopFaker ) {
-        self.element.removeChild( self.firstLoopFaker );
-        self.element.removeChild( self.lastLoopFaker );
-    }
+  if ( self.firstLoopFaker ) {
+    self.element.removeChild( self.firstLoopFaker );
+    self.firstLoopFaker = null;
+  }
+  if ( self.lastLoopFaker ) {
+    self.element.removeChild( self.lastLoopFaker );
+    self.lastLoopFaker = null;
   }
 
-  // Cache item count
-  self._itemLength = (function() {
+  // cache item count
+  var items = self.items = (function() {
     var childNodes = self.element.childNodes,
-      itemLength = 0,
       i = 0,
       len = childNodes.length,
-      node;
+      node,
+      nodes = [];
     for(; i < len; i++) {
       node = childNodes[i];
       if (node.nodeType === 1) {
-        itemLength++;
+        nodes.push(node);
       }
     }
-
-    return itemLength;
+    return nodes;
   })();
+  self.itemLength = self._itemLength = items.length;
 
   // setting max point
   self.maxPoint = self._maxPoint = (self.opts.maxPoint === undefined) ? self._itemLength - 1 : self.opts.maxPoint;
-
-
-  // setting distance
-  self.updateDistance();
 
   // set loop changes
   if(self.loop){
@@ -218,17 +224,37 @@ Flipsnap.prototype.refresh = function() {
     var last = self.element.lastElementChild;
     self.firstLoopFaker = first.cloneNode(true);
     self.lastLoopFaker = last.cloneNode(true);
-    self.element.style.width = (self.element.scrollWidth + self.element.scrollWidth * 2 / self._itemLength ) + 'px';
     self.element.appendChild(self.firstLoopFaker);
     self.element.insertBefore(self.lastLoopFaker, self.element.firstElementChild);
     self._itemLength = self._itemLength === 0 ? 0 : ( self._itemLength + 2 );
-    self._maxPoint = self._maxPoint === 0 ? 0 : ( self._maxPoint + 2 );
+    self._maxPoint = self._maxPoint < 0 ? self._maxPoint : ( self._maxPoint + 2 );
+    items.push(self.firstLoopFaker);
+    items.unshift(self.lastLoopFaker);
+  }
+
+  // set scroller width
+  self.scrollWidth = items.length < 1 ? 0 : self._itemLength * ( self.itemWidth || getOuterWidth(items[0]) );
+  self.element.style.width = self.scrollWidth + 'px';
+
+  // setting distance
+  self.updateDistance();
+
+  // cache images
+  var itemImgs = self.itemImgs = [];
+  for(var i=0, l=items.length; i<l; i++) {
+    var imgs = items[i].getElementsByTagName('img');
+    itemImgs[i] = findLazyImgs(imgs);
   }
 
   // setting maxX
   self._maxX = -self._distance * self._maxPoint;
 
-  self.moveToPoint(0,0);
+  self.moveToPoint( self.currentPoint || 0,0);
+
+  // resume if enable auto-play
+  if ( self.isAutoPlayEnable() ) {
+    self.resumeAutoPlay();
+  }
 };
 
 Flipsnap.prototype.updateDistance = function() {
@@ -239,7 +265,7 @@ Flipsnap.prototype.updateDistance = function() {
       self._distance = 0;
     }
     else {
-      self._distance = self.element.scrollWidth / (self._maxPoint + 1);
+      self._distance = self.scrollWidth / (self._maxPoint + 1);
     }
   }
   else {
@@ -248,30 +274,32 @@ Flipsnap.prototype.updateDistance = function() {
 };
 
 Flipsnap.prototype.hasNext = function() {
-  var self = this;
 
-  return self.loop ? true : self.currentPoint < self.maxPoint;
+  return this.loop ? true : this.currentPoint < this.maxPoint;
 };
 
 Flipsnap.prototype.hasPrev = function() {
-  var self = this;
 
-  return self.loop ? true : self.currentPoint > 0;
+  return this.loop ? true : this.currentPoint > 0;
 };
 
 Flipsnap.prototype.toNext = function(transitionDuration) {
   var self = this;
 
-  if (!self.hasNext()) {
+  if ( !self.hasNext()) {
     return;
   }
 
   if ( self.loop && self.currentPoint >= self.maxPoint ) {
+    self.animation = false;
     self._setStyle({ transitionDuration: '0ms' });
-    self._setX(0, 0);
+    // Timeout for IE 11
     setTimeout(function(){
-      self.moveToPoint(0, transitionDuration);
-    }, 0);
+      self._setX(0, 0);
+      setTimeout(function(){
+        self.moveToPoint(0, transitionDuration);
+      }, 10);
+    }, 10);
   }
   else {
     self.moveToPoint(self.currentPoint + 1, transitionDuration);
@@ -286,11 +314,15 @@ Flipsnap.prototype.toPrev = function(transitionDuration) {
   }
 
   if ( self.loop && self.currentPoint === 0 ) {
+    self.animation = false;
     self._setStyle({ transitionDuration: '0ms' });
-    self._setX(self._maxX, 0);
+    // Timeout for IE 11
     setTimeout(function(){
-      self.moveToPoint(self.maxPoint, transitionDuration);
-    }, 0);
+      self._setX(self._maxX, 0);
+      setTimeout(function(){
+        self.moveToPoint(self.maxPoint, transitionDuration);
+      }, 10);
+    }, 10);
   }
   else {
     self.moveToPoint(self.currentPoint - 1, transitionDuration);
@@ -298,29 +330,31 @@ Flipsnap.prototype.toPrev = function(transitionDuration) {
 };
 
 Flipsnap.prototype._realPointToUserPoint = function( _point ){
-  var self = this;
 
-  return self.loop ? 
-      ( _point < 1 ? self.maxPoint : (_point - 1) )
-    : _point;
+  return this.loop ? ( _point < 1 ? self.maxPoint : (_point - 1) ) : _point;
+};
+
+Flipsnap.prototype._userPointToRealPoint = function( point ){
+
+  return this.loop ? point + 1 : point;
 };
 
 Flipsnap.prototype.moveToPoint = function(point, transitionDuration, fromTouch) {
-    var self = this;
-    var _point;
+  var self = this;
+  var _point;
 
-    if ( point === undefined ) {
-      point = self.currentPoint;
+  if ( point === undefined ) {
+    point = self.currentPoint;
+  }
+  else {
+    if (point < 0 || isNaN( point ) ) {
+      point = 0;
     }
-    else {
-        if (point < 0 || isNaN( point ) ) {
-          point = 0;
-        }
-        else if (point > self.maxPoint) {
-          point = self.maxPoint;
-      }
+    else if (point > self.maxPoint) {
+      point = self.maxPoint;
     }
-    self._moveToPoint( self.loop ? point + 1 : point, transitionDuration, fromTouch );
+  }
+  self._moveToPoint( self.loop ? point + 1 : point, transitionDuration, fromTouch );
 };
 
 Flipsnap.prototype._moveToPoint = function(_point, transitionDuration, fromTouch ) {
@@ -328,17 +362,22 @@ Flipsnap.prototype._moveToPoint = function(_point, transitionDuration, fromTouch
 
   clearTimeout(self._moveendTimeout);
   clearTimeout(self._autoPlayTimeout);
+
+  // point show for user.
+  var point = self._realPointToUserPoint( _point );
+  var beforePoint = self.currentPoint;
+  var _beforePoint = self._currentPoint;
+
   // When not manually touch.
   if ( !fromTouch ) {
     self._triggerEvent('fsmovestart', true, false);
+
+    // Set lazy img before non-manually point move.
+    self.showItemLazyImgs( point );
   }
 
   transitionDuration = transitionDuration === undefined
     ? self.transitionDuration : transitionDuration;
-  // point loop show for user.
-  var point = self._realPointToUserPoint( _point );
-  var beforePoint = self.currentPoint;
-  var _beforePoint = self._currentPoint;
 
   self.currentPoint = point;
   self._currentPoint = _point;
@@ -350,7 +389,24 @@ Flipsnap.prototype._moveToPoint = function(_point, transitionDuration, fromTouch
   };
   var moveEndCallback = function(){
     self._triggerEvent('fsmoveend', true, false, evData);
-    self._autoPlay();
+    // Resume auto-play after moveend.
+    if ( self.isAutoPlayEnable() ) {
+      self.resumeAutoPlay();
+    }
+
+    // Show lazy image after animation when manually touching.
+    if ( fromTouch ) {
+      self.showItemLazyImgs( point );
+    }
+
+    // Load next lazy image.
+    var nextIndex = (point + 1) % self.itemLength;
+    setTimeout(function(){
+      self.nextImgLazyDfd = self.loadItemLazyImgs( nextIndex, function(){
+        self.showItemLazyImgs( nextIndex );
+      });
+    }, 100 / 6);
+
   };
 
   // Use js animation when disable css transition.
@@ -395,7 +451,6 @@ Flipsnap.prototype._setX = function(x, transitionDuration, moveEndCallback) {
 };
 
 Flipsnap.prototype._touchStart = function(event, type) {
-  console.log(1);
   var self = this;
 
   if (self.disableTouch || self.scrolling || gestureStart) {
@@ -404,7 +459,14 @@ Flipsnap.prototype._touchStart = function(event, type) {
 
   clearInterval(self._animateTimer);
   clearTimeout(self._moveendTimeout);
-  clearTimeout(self._autoPlayTimeout);
+
+  // Pause auto-play.
+  self.pauseAutoPlay();
+
+  // Pause image lazy load.
+  if ( self.nextImgLazyDfd ) {
+    self.nextImgLazyDfd.reject();
+  }
 
   self.element.addEventListener(events.move[type], self, false);
   document.addEventListener(events.end[type], self, false);
@@ -426,6 +488,13 @@ Flipsnap.prototype._touchStart = function(event, type) {
   self.directionX = 0;
   self.startTime = event.timeStamp;
   self._triggerEvent('fstouchstart', true, false);
+
+  // Show next lazy image when manually touch start.
+  self.showItemLazyImgs( ( self.currentPoint + 1 ) % self.itemLength );
+  // When loop mode, user maybe snap left and left.
+  if ( self.loop ) {
+    self.showItemLazyImgs( ( self.itemLength + self.currentPoint - 1 ) % self.itemLength );
+  }
 };
 
 Flipsnap.prototype._touchMove = function(event, type) {
@@ -449,7 +518,7 @@ Flipsnap.prototype._touchMove = function(event, type) {
     if (newX >= 0 || newX < self._maxX) {
       newX = Math.round(self.currentX + distX / 3);
     }
- 
+
     // When distX is 0, use one previous value.
     // For android firefox. When touchend fired, touchmove also
     // fired and distX is certainly set to 0.
@@ -474,7 +543,7 @@ Flipsnap.prototype._touchMove = function(event, type) {
           newX = 0 + newX - rightRealSide ;
         }
         else if ( self.currentX < rightRealSide && newX <= self._maxX ) {
-          newX = leftRealSide + newX - self._maxX; 
+          newX = leftRealSide + newX - self._maxX;
         }
       }
     }
@@ -509,10 +578,10 @@ Flipsnap.prototype._touchMove = function(event, type) {
         self.moveReady = true;
         self.element.addEventListener('click', self, true);
         self._triggerEvent('fsmovestart', true, false);
+        // Load lazy images in next item.
+        self.loadItemLazyImgs( (self.currentPoint + self.directionX) % self.itemLength );
       }
       else {
-        clearTimeout(self._autoPlayTimeout);
-
         self._touchAfter({
           moved: false,
           originalPoint: self.currentPoint,
@@ -523,7 +592,9 @@ Flipsnap.prototype._touchMove = function(event, type) {
           self.moveToPoint( undefined, undefined, true );
         }
 
-        self._autoPlay();
+        if ( self.isAutoPlayEnable() ) {
+          self.resumeAutoPlay();
+        }
       }
     }
   }
@@ -588,39 +659,71 @@ Flipsnap.prototype._touchAfter = function(params) {
   self._triggerEvent('fstouchend', true, false, params);
 };
 
-Flipsnap.prototype.autoPlay = function( autoPlayDuration ){
-  this.enableAutoPlay = true;
-  this.autoPlayDuration = autoPlayDuration || this.autoPlayDuration || 4000;
-  this._autoPlay();
-  return this;
+// Auto-play interfaces: isAutoPlayEnable, autoPlay, cancleAutoPlay, pauseAutoPlay, resumeAutoPlay
+Flipsnap.prototype.isAutoPlayEnable = function( ) {
+
+  return this.enableAutoPlay && this.itemLength > 1;
 };
 
-Flipsnap.prototype.stopAutoPlay = function(){
+Flipsnap.prototype.autoPlay = function( ) {
+
+  this.enableAutoPlay = true;
+  return this.resumeAutoPlay();
+};
+
+Flipsnap.prototype.cancleAutoPlay = function(){
+
   this.enableAutoPlay = false;
+  return this.pauseAutoPlay();
+};
+
+Flipsnap.prototype.pauseAutoPlay = function(){
+
   clearTimeout( this._autoPlayTimeout );
   return this;
 };
 
-Flipsnap.prototype._autoPlay = function(){
+Flipsnap.prototype.resumeAutoPlay = function(){
   var self = this;
 
-  if ( !self.enableAutoPlay ) {
-    return;
-  }
+  if ( self.isAutoPlayEnable() ) {
 
-  clearTimeout( self._autoPlayTimeout );
-  self._autoPlayTimeout = setTimeout(function(){
-    doWhenActive(function(){
-      if ( self.hasNext() ) {
-        self.toNext();
+    var nextIndex = (self.currentPoint + 1) % self.itemLength;
+    var waitCount = 2;
+
+    var checkAllDone = function(){
+      if ( --waitCount === 0 ) {
+        // Do after finish load image & auto-play timeout.
+
+        // Next step
+        doWhenActive(function(){
+          self._autoPlayTimeout = setTimeout(function(){
+            if ( self.hasNext() ) {
+              self.toNext();
+            }
+            else {
+              self.moveToPoint(0);
+            }
+          }, self.autoPlayDuration / 3);
+        });
       }
-      else {
-        self.moveToPoint(0);
-      }
-      self._autoPlay();
-    });
-  }, self.autoPlayDuration );
+    };
+
+    if ( self.nextImgLazyDfd ) {
+      self.nextImgLazyDfd.always( checkAllDone );
+    }
+    else {
+      checkAllDone();
+    }
+
+    clearTimeout( self._autoPlayTimeout );
+    self._autoPlayTimeout = setTimeout(checkAllDone, self.autoPlayDuration * 2  / 3);
+
+  }
+  return this;
 };
+
+
 
 Flipsnap.prototype._setStyle = function(styles) {
   var self = this;
@@ -737,6 +840,132 @@ function setStyle(style, prop, val) {
 
 // Export as a util function.
 Flipsnap.prototype.setStyle = setStyle;
+
+
+// Functions for image lazy load.
+function findLazyImgs(imgs){
+  var res = [];
+  for(var i=0, l=imgs.length; i<l; i++) {
+    if ( isLazyImg(imgs[i]) ){
+      res.push(imgs[i]);
+    }
+  }
+  return res;
+}
+
+function isLazyImg(img){
+  return !!img.getAttribute('lazy-src');
+}
+
+Flipsnap.prototype.showItemLazyImgs = function( index ){
+  var self = this;
+
+  var _index = self._userPointToRealPoint(index);
+  var imgs = self.itemImgs[_index];
+
+  if ( !imgs || !imgs.length ) {
+    return ;
+  }
+
+  if ( self.loop ) {
+    if ( index == 0 ) {
+      imgs = imgs.concat( self.itemImgs[ self._itemLength - 1 ] );
+    }
+    if ( index == self.itemLength - 1 ) {
+      imgs = imgs.concat( self.itemImgs[ 0 ] );
+    }
+  }
+
+  for( var i=0, l= imgs.length; i<l; i++ ) {
+    setLazyImg( imgs[i] );
+  }
+}
+
+Flipsnap.prototype.loadItemLazyImgs = function( index, callback ){
+  var self = this;
+
+  var _index = self._userPointToRealPoint(index);
+  var imgs = self.itemImgs[_index];
+
+  if ( !imgs || !imgs.length ) {
+    return ;
+  }
+
+  var waitCount = imgs.length;
+  var dfd = {
+    status: 'padding',
+    callbacks: [],
+    status: function (){ return status; },
+    reject: function (){ this.status = 'fail'; },
+    always: function( callback ){
+      if ( typeof callback == 'function' ) {
+        if ( this.status == 'success' || this.status == 'fail' ) {
+          callback();
+        }
+        else {
+          this.callbacks.push( callback );
+        }
+      }
+    }
+  };
+
+  dfd.always( callback );
+
+  for( var i=0, l= imgs.length; i<l; i++ ) {
+    loadLazyImg( imgs[i], function(){
+      if ( --waitCount == 0 && dfd.status != 'fail' ) {
+        dfd.status = 'success';
+        for( var i=0, l=dfd.callbacks.length; i<l; i++ ) {
+          dfd.callbacks[i]();
+        }
+      }
+    });
+  }
+
+  return dfd;
+}
+
+function setLazyImg(img){
+  var lazySrc = img.getAttribute('lazy-src');
+  var lazySrcset = img.getAttribute('lazy-srcset');
+  var setedSrc = img.getAttribute('seted-lazy-src');
+  var useSrcset = support.srcset && lazySrcset;
+  var id = useSrcset ? lazySrcset : lazySrc;
+
+  if ( id && setedSrc != id ) {
+    img[ useSrcset ? 'srcset' : 'src' ] = useSrcset ? lazySrcset : lazySrc;
+    img.setAttribute('seted-lazy-src', id);
+  }
+}
+
+var imgLoadedMap = {};
+
+function loadLazyImg(img, callback){
+  var loader = new Image();
+  var lazySrc = img.getAttribute('lazy-src');
+  var lazySrcset = img.getAttribute('lazy-srcset');
+  var useSrcset = support.srcset && lazySrcset;
+  var id = useSrcset ? lazySrcset : lazySrc;
+
+  if ( id && !imgLoadedMap[ id ] ) {
+    loader.onload = loader.onerror = callback;
+    loader[ useSrcset ? 'srcset' : 'src' ] = useSrcset ? lazySrcset : lazySrc;
+    imgLoadedMap[ id ] = true;
+  }
+  else {
+    callback();
+  }
+}
+
+function getOuterWidth(el){
+  // Code from https://github.com/jquery/jquery/blob/master/src/css/var/getStyles.js
+  var style = el.ownerDocument.defaultView.opener ? el.ownerDocument.defaultView.getComputedStyle( el, null )
+                                          : window.getComputedStyle( el, null );
+  var marginLeft = Number((style['marginLeft'] || style['margin-left'] || '').slice(0,-2));
+  var marginRight = Number((style['marginRight'] || style['margin-right'] || '').slice(0,-2));
+
+  return el.offsetWidth + marginLeft + marginRight;
+}
 
 function getCSSVal(prop) {
   if (div.style[ prop ] !== undefined) {
